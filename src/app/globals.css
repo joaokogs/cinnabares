@@ -141,3 +141,161 @@
   }
 }
 }
+
+.aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.45;
+  will-change: transform;
+  animation-duration: 22s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.aurora--one {
+  width: 26rem;
+  height: 26rem;
+  background: radial-gradient(circle, rgba(255, 91, 79, 0.4), transparent 65%);
+  animation-name: aurora-drift-a;
+}
+
+.aurora--two {
+  width: 20rem;
+  height: 20rem;
+  background: radial-gradient(circle, rgba(255, 146, 128, 0.3), transparent 65%);
+  animation-name: aurora-drift-b;
+}
+
+.aurora--three {
+  width: 18rem;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(255, 91, 79, 0.25), transparent 60%);
+  animation-name: aurora-drift-c;
+}
+
+@keyframes aurora-drift-a {
+  from {
+    transform: translate3d(-12%, -8%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(10%, 14%, 0) scale(1.18);
+  }
+}
+
+@keyframes aurora-drift-b {
+  from {
+    transform: translate3d(8%, 12%, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-14%, -6%, 0) scale(0.95);
+  }
+}
+
+@keyframes aurora-drift-c {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(12%, -10%, 0) scale(1.15);
+  }
+}
+
+.marquee-track {
+  animation: marquee-scroll 34s linear infinite;
+  will-change: transform;
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 3.6s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+.text-outline-accent {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent);
+}
+
+@media (min-width: 640px) {
+  .text-outline-accent {
+    -webkit-text-stroke-width: 2px;
+  }
+}
+
+.bg-grid {
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.bg-dots {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  transform: translateX(-150%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: shine-sweep 3.8s ease-in-out infinite;
+}
+
+@keyframes shine-sweep {
+  0%,
+  55% {
+    transform: translateX(-150%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.mask-fade-x {
+  mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+}

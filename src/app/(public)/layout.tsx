@@ -1,5 +1,6 @@
 import { SiteFooter } from "./_components/site-footer"
 import { SiteHeader } from "./_components/site-header"
+import { MotionProvider } from "./_components/motion-provider"
 
 export default function PublicLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -11,9 +12,11 @@ export default function PublicLayout({ children }: Readonly<{ children: React.Re
         Pular para o conteúdo
       </a>
       <SiteHeader />
-      <div id="conteudo" tabIndex={-1} className="flex min-h-0 flex-1 flex-col">
-        {children}
-      </div>
+      <MotionProvider>
+        <div id="conteudo" tabIndex={-1} className="flex min-h-0 flex-1 flex-col">
+          {children}
+        </div>
+      </MotionProvider>
       <SiteFooter />
     </>
   )
