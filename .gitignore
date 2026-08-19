@@ -20,6 +20,11 @@
 # production
 /build
 
+# database schema and migrations
+!/drizzle/
+!/drizzle/**
+!drizzle.config.ts
+
 # misc
 .DS_Store
 *.pem
