@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +20,9 @@ type AuthFormProps = {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedRedirect = searchParams.get("redirect")
+  const redirectTo = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") ? requestedRedirect : "/perfil"
   const isRegister = mode === "register"
   const [username, setUsername] = useState("")
   const [identifier, setIdentifier] = useState("")
@@ -51,7 +54,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       return
     }
 
-    router.push("/perfil")
+    router.push(redirectTo)
     router.refresh()
   }
 

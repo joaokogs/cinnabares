@@ -24,6 +24,12 @@ export function SiteHeader() {
           >
             Início
           </Link>
+           <Link
+            href="/guildas"
+            className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+          >
+            Guildas
+          </Link>
           <Link
             href="/guias"
             className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"

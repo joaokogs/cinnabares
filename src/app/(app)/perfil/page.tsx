@@ -10,6 +10,7 @@ import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
 import { AvatarUploader } from "./_components/avatar-uploader"
 import { SignOutButton } from "./_components/sign-out-button"
+import { ProfileForm } from "./_components/profile-form"
 
 export const metadata: Metadata = {
   title: "Meu perfil",
@@ -43,7 +44,7 @@ export default async function ProfilePage() {
       <div className="relative z-10 mx-auto w-full max-w-3xl space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">Área do player</p>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">Area do player</p>
             <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Seu perfil</h1>
           </div>
           <SignOutButton />
@@ -56,12 +57,21 @@ export default async function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-8">
             <AvatarUploader initialUrl={avatarUrl} username={player.username ?? player.name} />
+
+            <div className="border-t border-border/70 pt-6">
+              <h2 className="mb-4 font-heading text-lg font-semibold">Editar perfil</h2>
+              <ProfileForm
+                initialName={player.name}
+                initialUsername={player.username ?? ""}
+              />
+            </div>
+
             <div className="grid gap-4 border-t border-border/70 pt-6 sm:grid-cols-2">
               <div className="rounded-xl border border-border/70 bg-background/40 p-4">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
                   <AtSign className="size-4 text-accent" aria-hidden="true" /> Username
                 </div>
-                <p className="mt-2 font-heading font-semibold">{player.username ?? "Não informado"}</p>
+                <p className="mt-2 font-heading font-semibold">{player.username ?? "Nao informado"}</p>
               </div>
               <div className="rounded-xl border border-border/70 bg-background/40 p-4">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
@@ -72,7 +82,7 @@ export default async function ProfilePage() {
             </div>
             <div className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent/5 p-4 text-sm leading-6 text-muted-foreground">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden="true" />
-              <p>Sua senha é protegida pelo Better Auth e nunca é exibida nesta página.</p>
+              <p>Sua senha e protegida pelo Better Auth e nunca e exibida nesta pagina.</p>
             </div>
           </CardContent>
         </Card>

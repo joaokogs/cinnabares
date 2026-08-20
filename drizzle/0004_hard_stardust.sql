@@ -1,0 +1,1 @@
+ALTER TABLE "guild" ADD COLUMN "banner" text;

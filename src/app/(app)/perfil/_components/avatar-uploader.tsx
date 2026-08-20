@@ -30,7 +30,7 @@ function compressAvatar(file: File) {
         const context = canvas.getContext("2d")
 
         if (!context) {
-          throw new Error("Não foi possível preparar a imagem.")
+          throw new Error("Nao foi possivel preparar a imagem.")
         }
 
         for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -45,7 +45,7 @@ function compressAvatar(file: File) {
           )
 
           if (!blob) {
-            throw new Error("Não foi possível comprimir a imagem.")
+            throw new Error("Nao foi possivel comprimir a imagem.")
           }
 
           if (blob.size <= MAX_BYTES || attempt === 3) {
@@ -65,7 +65,7 @@ function compressAvatar(file: File) {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl)
-      reject(new Error("Não foi possível ler essa imagem."))
+      reject(new Error("Nao foi possivel ler essa imagem."))
     }
     image.src = objectUrl
   })
@@ -103,12 +103,12 @@ export function AvatarUploader({ initialUrl, username }: AvatarUploaderProps) {
       const result = (await response.json()) as { error?: string; url?: string }
 
       if (!response.ok || !result.url) {
-        throw new Error(result.error ?? "Não foi possível salvar o avatar.")
+        throw new Error(result.error ?? "Nao foi possivel salvar o avatar.")
       }
 
       setAvatarUrl(result.url)
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível salvar o avatar.")
+      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel salvar o avatar.")
     } finally {
       setIsUploading(false)
     }
@@ -153,7 +153,7 @@ export function AvatarUploader({ initialUrl, username }: AvatarUploaderProps) {
       <div className="space-y-2 text-center sm:text-left">
         <p className="font-heading text-lg font-semibold">Seu avatar</p>
         <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-          Escolha uma imagem. Ela será redimensionada para até 512px e convertida para WebP antes do upload.
+          Escolha uma imagem. Ela sera redimensionada para ate 512px e convertida para WebP antes do upload.
         </p>
         <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={isUploading}>
           {isUploading ? "Comprimindo..." : "Escolher imagem"}

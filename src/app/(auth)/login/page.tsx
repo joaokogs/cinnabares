@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { AuthForm } from "../_components/auth-form"
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 }
 
 export default function LoginPage() {
-  return <AuthForm mode="login" />
+  return (
+    <Suspense>
+      <AuthForm mode="login" />
+    </Suspense>
+  )
 }
