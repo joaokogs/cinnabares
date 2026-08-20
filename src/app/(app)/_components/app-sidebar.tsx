@@ -74,7 +74,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
 
   const navItems = [
     { href: "/perfil", label: "Perfil", icon: User },
-    { href: "/minha-guilda", label: "Minha guilda", icon: Shield, disabled: !guild },
+    { href: guild ? `/guildas/${guild.tag}` : "/guildas", label: "Minha guilda", icon: Shield, disabled: !guild },
     { href: "/guildas", label: "Explorar guildas", icon: Search },
   ]
 
@@ -87,7 +87,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
     >
       <ul className="flex flex-1 flex-col gap-1 px-3 mt-4" role="list">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+          const isActive = pathname === item.href || (item.href !== "/guildas" && pathname.startsWith(item.href + "/"))
           const Icon = item.icon
           return (
             <li key={item.href}>
@@ -235,7 +235,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden flex-col border-r border-border/60 bg-background transition-[width] duration-200 lg:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/60 bg-background transition-[width] duration-200 lg:flex",
           sidebarWidth
         )}
       >

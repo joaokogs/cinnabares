@@ -25,14 +25,8 @@ export function SiteHeader() {
             Início
           </Link>
            <Link
-            href="/guildas"
-            className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
-          >
-            Guildas
-          </Link>
-          <Link
-            href="/guias"
-            className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+             href="/guias"
+             className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
           >
             Guias
           </Link>
@@ -42,13 +36,7 @@ export function SiteHeader() {
           >
             Entrar
           </Link>
-          <Link
-            href="/register"
-            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
-          >
-            Criar conta
-          </Link>
-        </nav>
+         </nav>
       </div>
     </header>
   )
