@@ -9,7 +9,67 @@ import { getTournament, listTournamentRegistrations } from "@/lib/tournaments/qu
 import { getAdminSession } from "@/lib/tournaments/auth"
 
 type RouteProps = { params: Promise<{ id: string }> }
+type NamedResource = { name: string; url: string }
+type ResourceList = { results: NamedResource[] }
+type HoldableItemList = { items: NamedResource[] }
+
 const validTiers = new Set<TournamentTier>(["overused", "underused", "neverused", "doubles", "random"])
+const POKE_API_URL = "https://pokeapi.co/api/v2"
+const ITEM_SOURCE_ENDPOINTS = [
+  "item-category/held-items/",
+  "item-category/choice/",
+  "item-category/type-enhancement/",
+  "item-category/plates/",
+  "item-category/bad-held-items/",
+]
+const BALL_CATEGORY_ENDPOINTS = [
+  "item-category/standard-balls/",
+  "item-category/special-balls/",
+  "item-category/apricorn-balls/",
+]
+const BERRY_ENDPOINT = "berry?limit=1000"
+const MAX_GEN_5_POKEMON_ID = 649
+let allowedRosterValuesPromise: Promise<{ pokemon: Set<string>; items: Set<string> }> | null = null
+
+function getResourceId(url: string) {
+  return Number(url.match(/\/(\d+)\/?$/)?.[1] ?? Number.NaN)
+}
+
+async function fetchAllowedRosterValues() {
+  const [pokemonResponse, ...itemAndBallResponses] = await Promise.all([
+    fetch(`${POKE_API_URL}/pokemon?limit=10000`),
+    ...ITEM_SOURCE_ENDPOINTS.map((endpoint) => fetch(`${POKE_API_URL}/${endpoint}`)),
+    ...BALL_CATEGORY_ENDPOINTS.map((endpoint) => fetch(`${POKE_API_URL}/${endpoint}`)),
+    fetch(`${POKE_API_URL}/${BERRY_ENDPOINT}`),
+  ])
+  if (!pokemonResponse.ok || itemAndBallResponses.some((response) => !response.ok)) throw new Error("PokeAPI indisponível")
+
+  const berryResponse = itemAndBallResponses[itemAndBallResponses.length - 1]
+  const categoryResponses = itemAndBallResponses.slice(0, ITEM_SOURCE_ENDPOINTS.length + BALL_CATEGORY_ENDPOINTS.length)
+  const [pokemonData, ...itemAndBallData] = await Promise.all([
+    pokemonResponse.json() as Promise<ResourceList>,
+    ...categoryResponses.map((response) => response.json() as Promise<HoldableItemList>),
+  ])
+  const berryData = await berryResponse.json() as ResourceList
+  const itemData = itemAndBallData.slice(0, ITEM_SOURCE_ENDPOINTS.length)
+  const ballData = itemAndBallData.slice(ITEM_SOURCE_ENDPOINTS.length)
+  const itemNames = new Set(itemData.flatMap(({ items }) => items.map(({ name }) => name)))
+  const ballNames = new Set(ballData.flatMap(({ items }) => items.map(({ name }) => name)))
+  for (const { name } of berryData.results) itemNames.add(`${name}-berry`)
+
+  return {
+    pokemon: new Set(pokemonData.results.filter(({ url }) => getResourceId(url) <= MAX_GEN_5_POKEMON_ID).map(({ name }) => name)),
+    items: new Set([...itemNames].filter((name) => !ballNames.has(name))),
+  }
+}
+
+function loadAllowedRosterValues() {
+  allowedRosterValuesPromise ??= fetchAllowedRosterValues().catch((error) => {
+    allowedRosterValuesPromise = null
+    throw error
+  })
+  return allowedRosterValuesPromise
+}
 
 function normalizeRoster(value: unknown): TournamentRosterEntry[] {
   if (!Array.isArray(value)) return []
@@ -18,14 +78,14 @@ function normalizeRoster(value: unknown): TournamentRosterEntry[] {
     const team = Array.isArray(item.team)
       ? item.team.map((pokemon) => {
           const current = pokemon as Record<string, unknown>
-          return { name: typeof current.name === "string" ? current.name.trim() : "", item: typeof current.item === "string" ? current.item.trim() : undefined }
+          return { name: typeof current.name === "string" ? current.name.trim().toLowerCase() : "", item: typeof current.item === "string" ? current.item.trim().toLowerCase() : undefined }
         })
       : undefined
     return { playerId: typeof item.playerId === "string" ? item.playerId : "", tier: typeof item.tier === "string" ? item.tier as TournamentTier : "random", team }
   })
 }
 
-function validateRoster(roster: TournamentRosterEntry[], visibility: "blind" | "partial" | "total", expectedSize: number, allowedTiers: TournamentTier[], tierRules: Partial<Record<TournamentTier, number>>) {
+async function validateRoster(roster: TournamentRosterEntry[], visibility: "blind" | "partial" | "total", expectedSize: number, allowedTiers: TournamentTier[], tierRules: Partial<Record<TournamentTier, number>>) {
   if (visibility === "blind" && expectedSize === 1 && roster.length === 0) return null
   if (roster.length !== expectedSize) return `A inscrição precisa escalar ${expectedSize} player${expectedSize === 1 ? "" : "s"}.`
   if (roster.some((entry) => !entry.playerId || !allowedTiers.includes(entry.tier))) return "Há um player ou tier inválido na escalação."
@@ -36,6 +96,17 @@ function validateRoster(roster: TournamentRosterEntry[], visibility: "blind" | "
   }
   if (visibility !== "blind" && roster.some((entry) => !entry.team || entry.team.length !== 6 || entry.team.some((pokemon) => !pokemon.name))) return "Cada player deve informar exatamente 6 Pokémon."
   if (visibility === "total" && roster.some((entry) => entry.team?.some((pokemon) => !pokemon.item))) return "Cada Pokémon precisa informar um item nesta modalidade."
+  if (visibility !== "blind") {
+    let allowedValues: Awaited<ReturnType<typeof loadAllowedRosterValues>>
+    try {
+      allowedValues = await loadAllowedRosterValues()
+    } catch {
+      return "Não foi possível validar os Pokémon e itens agora. Tente novamente em instantes."
+    }
+
+    if (roster.some((entry) => entry.team?.some((pokemon) => !allowedValues.pokemon.has(pokemon.name.toLowerCase())))) return "A escalação contém um Pokémon fora das gerações permitidas."
+    if (visibility === "total" && roster.some((entry) => entry.team?.some((pokemon) => pokemon.item && !allowedValues.items.has(pokemon.item.toLowerCase())))) return "A escalação contém um item que não pode ser usado em batalha."
+  }
   return null
 }
 
@@ -59,7 +130,7 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   const body = await request.json() as { guildId?: string; roster?: unknown }
   const roster = normalizeRoster(body.roster)
-  const rosterError = validateRoster(roster, tournamentData.visibility, tournamentData.teamSize, tournamentData.tiers, tournamentData.tierRules)
+  const rosterError = await validateRoster(roster, tournamentData.visibility, tournamentData.teamSize, tournamentData.tiers, tournamentData.tierRules)
   if (rosterError) return Response.json({ error: `Revise a escalação: ${rosterError}` }, { status: 400 })
 
   let guildId: string | null = null
