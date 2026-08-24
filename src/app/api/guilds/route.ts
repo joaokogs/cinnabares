@@ -14,18 +14,18 @@ function readText(formData: FormData, field: string) {
 }
 
 function validateGuild(name: string, tag: string, description: string) {
-  if (name.length < 2 || name.length > 80) return "O nome deve ter entre 2 e 80 caracteres."
+  if (name.length < 2 || name.length > 80) return "O nome da guilda deve ter entre 2 e 80 caracteres."
   if (!/^[a-z0-9][a-z0-9-]{0,3}$/.test(tag)) {
-    return "A tag deve ter no máximo 4 caracteres, sem espaços."
+    return "A tag deve ter de 1 a 4 caracteres, começar com uma letra ou número e não conter espaços."
   }
-  if (description.length > 500) return "A descrição deve ter no máximo 500 caracteres."
+  if (description.length > 500) return "A descrição da guilda deve ter no máximo 500 caracteres."
   return null
 }
 
 async function uploadAsset(file: FormDataEntryValue | null, pathname: string) {
   if (!(file instanceof File) || file.size === 0) return null
-  if (!allowedImageTypes.has(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.")
-  if (file.size > MAX_IMAGE_BYTES) throw new Error("A imagem deve ter no máximo 3 MB.")
+  if (!allowedImageTypes.has(file.type)) throw new Error("Escolha uma imagem JPG, PNG ou WebP.")
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("A imagem deve ter no máximo 3 MB. Escolha um arquivo menor.")
 
   const blob = await put(pathname, file, {
     access: "private",
@@ -39,7 +39,7 @@ async function uploadAsset(file: FormDataEntryValue | null, pathname: string) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers })
 
-  if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 })
+  if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para criar uma guilda." }, { status: 401 })
 
   const formData = await request.formData()
   const name = readText(formData, "name")
@@ -62,10 +62,10 @@ export async function POST(request: Request) {
       .limit(1),
   ])
 
-  if (existingGuild?.name === name) return Response.json({ error: "Esse nome já está em uso." }, { status: 409 })
-  if (existingGuild?.tag === tag) return Response.json({ error: "Essa tag já está em uso." }, { status: 409 })
+  if (existingGuild?.name === name) return Response.json({ error: "Esse nome de guilda já está em uso. Escolha outro." }, { status: 409 })
+  if (existingGuild?.tag === tag) return Response.json({ error: "Essa tag já está em uso. Escolha outra." }, { status: 409 })
   if (existingMembership) {
-    return Response.json({ error: "Você já pertence a uma guilda e não pode criar outra." }, { status: 409 })
+    return Response.json({ error: "Você já pertence a uma guilda. Saia dela antes de criar outra." }, { status: 409 })
   }
 
   const id = randomUUID()
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       uploadAsset(formData.get("banner"), `guilds/${id}/banner`),
     ])
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Não foi possível salvar as imagens." }, { status: 400 })
+    return Response.json({ error: error instanceof Error ? error.message : "Não foi possível processar as imagens. Escolha outros arquivos e tente novamente." }, { status: 400 })
   }
 
   try {
@@ -110,16 +110,16 @@ export async function POST(request: Request) {
     const databaseError = error as { cause?: { code?: string; constraint?: string } }
     if (databaseError.cause?.code === "23505") {
       if (databaseError.cause.constraint === "guild_member_user_unique") {
-        return Response.json({ error: "Você já pertence a uma guilda e não pode criar outra." }, { status: 409 })
+        return Response.json({ error: "Você já pertence a uma guilda. Saia dela antes de criar outra." }, { status: 409 })
       }
       if (databaseError.cause.constraint === "guild_name_unique") {
-        return Response.json({ error: "Esse nome já está em uso." }, { status: 409 })
+        return Response.json({ error: "Esse nome de guilda já está em uso. Escolha outro." }, { status: 409 })
       }
       if (databaseError.cause.constraint === "guild_tag_unique") {
-        return Response.json({ error: "Essa tag já está em uso." }, { status: 409 })
+        return Response.json({ error: "Essa tag já está em uso. Escolha outra." }, { status: 409 })
       }
     }
-    return Response.json({ error: "Não foi possível criar a guilda." }, { status: 500 })
+    return Response.json({ error: "Não foi possível criar a guilda agora. Tente novamente em instantes." }, { status: 500 })
   }
 
   return Response.json({ tag })

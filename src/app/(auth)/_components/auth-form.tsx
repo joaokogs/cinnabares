@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { authClient } from "@/lib/auth-client"
+import { getAuthErrorMessage } from "@/lib/error-messages"
 
 type AuthFormProps = {
   mode: "login" | "register"
@@ -36,26 +37,30 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError(null)
     setIsPending(true)
 
-    const result = isRegister
-      ? await authClient.signUp.email({
-          name: username,
-          username,
-          email,
-          password,
-        })
-      : identifier.includes("@")
-        ? await authClient.signIn.email({ email: identifier, password })
-        : await authClient.signIn.username({ username: identifier, password })
+    try {
+      const result = isRegister
+        ? await authClient.signUp.email({
+            name: username,
+            username,
+            email,
+            password,
+          })
+        : identifier.includes("@")
+          ? await authClient.signIn.email({ email: identifier, password })
+          : await authClient.signIn.username({ username: identifier, password })
 
-    setIsPending(false)
+      if (result.error) {
+        setError(getAuthErrorMessage(result.error.message, isRegister ? "Não foi possível criar sua conta. Confira os dados e tente novamente." : "Não foi possível entrar. Confira seus dados e tente novamente."))
+        return
+      }
 
-    if (result.error) {
-      setError(result.error.message ?? "Não foi possível concluir a operação.")
-      return
+      router.push(redirectTo)
+      router.refresh()
+    } catch {
+      setError("Não foi possível conectar ao serviço de autenticação. Tente novamente em instantes.")
+    } finally {
+      setIsPending(false)
     }
-
-    router.push(redirectTo)
-    router.refresh()
   }
 
   return (

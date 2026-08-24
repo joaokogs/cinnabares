@@ -1,0 +1,229 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Trophy, Swords } from "lucide-react"
+
+import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import { getPhaseLabel } from "@/lib/tournaments/bracket"
+
+type Match = {
+  id: string
+  phase: number
+  position: number
+  slot1RegistrationId: string | null
+  slot2RegistrationId: string | null
+  winnerRegistrationId: string | null
+  status: "pending" | "completed"
+  slot1Name: string
+  slot1GuildTag: string | null
+  slot2Name: string
+  slot2GuildTag: string | null
+  winnerName: string | null
+}
+
+type BracketData = {
+  tournament: { name: string; status: string }
+  totalPhases: number
+  matches: Match[]
+  champion: { registrationId: string | null; name: string | null } | null
+}
+
+type BracketViewProps = {
+  tournamentId: string
+  adminMode?: boolean
+  onResolve?: (matchId: string, winnerRegistrationId: string) => void
+  onRevert?: (matchId: string) => void
+  resolvingMatchId?: string | null
+  revertingMatchId?: string | null
+}
+
+function MatchCard({ match, adminMode, onResolve, onRevert, resolving, reverting }: {
+  match: Match
+  adminMode?: boolean
+  onResolve?: (matchId: string, winnerRegistrationId: string) => void
+  onRevert?: (matchId: string) => void
+  resolving?: boolean
+  reverting?: boolean
+}) {
+  const isComplete = match.status === "completed"
+  const slot1Label = match.slot1GuildTag ? `${match.slot1Name} [${match.slot1GuildTag}]` : match.slot1Name
+  const slot2Label = match.slot2GuildTag ? `${match.slot2Name} [${match.slot2GuildTag}]` : match.slot2Name
+  const slot1IsWinner = match.winnerRegistrationId === match.slot1RegistrationId
+  const slot2IsWinner = match.winnerRegistrationId === match.slot2RegistrationId
+  const slot2IsBye = !match.slot2RegistrationId
+  const busy = resolving || reverting
+
+  return (
+    <div className="w-56 shrink-0 rounded-lg border border-border bg-background/60 p-0 text-sm">
+      <button
+        type="button"
+        disabled={!adminMode || !isComplete || busy || reverting}
+        onClick={() => { if (adminMode && isComplete && onRevert) onRevert(match.id) }}
+        className={cn(
+          "flex w-full items-center justify-between gap-2 border-b border-border/50 px-3 py-2 text-left transition-colors",
+          slot1IsWinner && "bg-primary/10",
+          adminMode && isComplete && "cursor-pointer hover:bg-destructive/5",
+          reverting && "animate-pulse opacity-60",
+        )}
+        aria-label={adminMode && isComplete ? `Desfazer resultado: ${slot1Label} vs ${slot2IsBye ? "BYE" : slot2Label}` : undefined}
+      >
+        <span className={cn("truncate", slot1IsWinner && "font-semibold text-primary")}>{slot1Label}</span>
+        {slot1IsWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
+      </button>
+
+      <button
+        type="button"
+        disabled={!adminMode || !isComplete || busy || reverting}
+        onClick={() => { if (adminMode && isComplete && onRevert) onRevert(match.id) }}
+        className={cn(
+          "flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors",
+          slot2IsWinner && "bg-primary/10",
+          adminMode && isComplete && "cursor-pointer hover:bg-destructive/5",
+          reverting && "animate-pulse opacity-60",
+        )}
+        aria-label={adminMode && isComplete ? `Desfazer resultado: ${slot1Label} vs ${slot2IsBye ? "BYE" : slot2Label}` : undefined}
+      >
+        <span className={cn("truncate", slot2IsWinner && "font-semibold text-primary")}>
+          {slot2IsBye ? "BYE" : slot2Label}
+        </span>
+        {slot2IsWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
+      </button>
+
+      {adminMode && !isComplete && match.slot1RegistrationId && match.slot2RegistrationId ? (
+        <div className="flex border-t border-border/50">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onResolve?.(match.id, match.slot1RegistrationId!)}
+            className={cn(
+              "flex-1 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10",
+              busy && "animate-pulse opacity-60",
+            )}
+          >
+            {slot1Label}
+          </button>
+          <div className="w-px bg-border/50" aria-hidden="true" />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onResolve?.(match.id, match.slot2RegistrationId!)}
+            className={cn(
+              "flex-1 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10",
+              busy && "animate-pulse opacity-60",
+            )}
+          >
+            {slot2Label}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function BracketView({ tournamentId, adminMode, onResolve, onRevert, resolvingMatchId, revertingMatchId }: BracketViewProps) {
+  const [data, setData] = useState<BracketData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    async function run() {
+      try {
+        const result = await fetch(`/api/tournaments/${tournamentId}/bracket`)
+        if (cancelled) return
+        if (!result.ok) {
+          const body = await result.json() as { error?: string }
+          setError(body.error ?? "Não foi possível carregar a chave.")
+          timeout = setTimeout(() => void run(), 10000)
+          return
+        }
+        const json = await result.json() as BracketData
+        setData(json)
+        setError(null)
+        if (json.tournament.status === "active") timeout = setTimeout(() => void run(), 10000)
+      } catch {
+        if (!cancelled) {
+          setError("Erro de conexão ao carregar a chave.")
+          timeout = setTimeout(() => void run(), 10000)
+        }
+      }
+    }
+    void run()
+    return () => { cancelled = true; if (timeout) clearTimeout(timeout) }
+  }, [tournamentId])
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+        <p className="text-sm text-destructive" role="alert">{error}</p>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="size-6 animate-spin rounded-full border-2 border-border border-t-accent" aria-label="Carregando" />
+      </div>
+    )
+  }
+
+  if (data.matches.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nenhuma partida encontrada.</p>
+  }
+
+  const phases = new Map<number, Match[]>()
+  for (const match of data.matches) {
+    const list = phases.get(match.phase) ?? []
+    list.push(match)
+    phases.set(match.phase, list)
+  }
+
+  return (
+    <div className="space-y-6">
+      {data.champion ? (
+        <Card className="border-accent/40 bg-accent/5">
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="grid size-12 place-items-center rounded-full bg-accent/20 ring-2 ring-accent/40">
+              <Trophy className="size-6 text-accent" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Campeão</p>
+              <p className="font-heading text-lg font-bold">{data.champion.name}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      <div className="overflow-x-auto pb-4">
+        <div className="flex gap-6" role="region" aria-label="Chave do torneio">
+          {Array.from(phases.entries()).map(([phase, matches]) => (
+            <div key={phase} className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <Swords className="size-4 text-accent" aria-hidden="true" />
+                <h3 className="font-heading text-sm font-semibold">{getPhaseLabel(phase, data.totalPhases)}</h3>
+              </div>
+              <div className="flex flex-col gap-4">
+                {matches.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    adminMode={adminMode}
+                    onResolve={onResolve}
+                    onRevert={onRevert}
+                    resolving={resolvingMatchId === match.id}
+                    reverting={revertingMatchId === match.id}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {data.tournament.status === "active" ? (
+        <p className="text-xs text-muted-foreground">Atualização automática a cada 10 segundos.</p>
+      ) : null}
+    </div>
+  )
+}

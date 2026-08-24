@@ -10,6 +10,7 @@ import {
   User,
   X,
   Search,
+  Swords,
 } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
@@ -30,6 +31,7 @@ type UserInfo = {
   name: string
   username: string | null
   image: string | null
+  role: string
 }
 
 type AppSidebarProps = {
@@ -76,7 +78,12 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
     { href: "/perfil", label: "Perfil", icon: User },
     { href: guild ? `/guildas/${guild.tag}` : "/guildas", label: "Minha guilda", icon: Shield, disabled: !guild },
     { href: "/guildas", label: "Explorar guildas", icon: Search },
+    { href: "/torneios", label: "Torneios", icon: Swords },
+    ...(user.role === "admin" ? [{ href: "/torneios/novo", label: "Criar torneio", icon: Swords }] : []),
   ]
+  const activeNavItem = navItems
+    .filter((item) => pathname === item.href || (item.href !== "/guildas" && pathname.startsWith(item.href + "/")))
+    .sort((first, second) => second.href.length - first.href.length)[0]
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-60"
 
@@ -87,7 +94,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
     >
       <ul className="flex flex-1 flex-col gap-1 px-3 mt-4" role="list">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/guildas" && pathname.startsWith(item.href + "/"))
+          const isActive = activeNavItem?.href === item.href
           const Icon = item.icon
           return (
             <li key={item.href}>

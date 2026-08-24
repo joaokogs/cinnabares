@@ -5,6 +5,7 @@ import NextImage, { type ImageLoaderProps } from "next/image"
 import { useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { getErrorMessage, readApiError } from "@/lib/error-messages"
 
 const MAX_EDGE = 512
 const MAX_BYTES = 250 * 1024
@@ -30,7 +31,7 @@ function compressAvatar(file: File) {
         const context = canvas.getContext("2d")
 
         if (!context) {
-          throw new Error("Nao foi possivel preparar a imagem.")
+          throw new Error("Não foi possível preparar a imagem para envio.")
         }
 
         for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -45,7 +46,7 @@ function compressAvatar(file: File) {
           )
 
           if (!blob) {
-            throw new Error("Nao foi possivel comprimir a imagem.")
+            throw new Error("Não foi possível preparar a imagem para envio.")
           }
 
           if (blob.size <= MAX_BYTES || attempt === 3) {
@@ -65,7 +66,7 @@ function compressAvatar(file: File) {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl)
-      reject(new Error("Nao foi possivel ler essa imagem."))
+      reject(new Error("Não foi possível ler essa imagem. Escolha outro arquivo e tente novamente."))
     }
     image.src = objectUrl
   })
@@ -100,15 +101,15 @@ export function AvatarUploader({ initialUrl, username }: AvatarUploaderProps) {
         method: "POST",
         body: formData,
       })
-      const result = (await response.json()) as { error?: string; url?: string }
+      const result = response.ok ? await response.json() as { url?: string } : null
 
-      if (!response.ok || !result.url) {
-        throw new Error(result.error ?? "Nao foi possivel salvar o avatar.")
+      if (!response.ok || !result?.url) {
+        throw new Error(await readApiError(response, "Não foi possível salvar seu avatar. Tente novamente."))
       }
 
       setAvatarUrl(result.url)
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Nao foi possivel salvar o avatar.")
+      setError(getErrorMessage(uploadError, "Não foi possível salvar seu avatar. Tente novamente."))
     } finally {
       setIsUploading(false)
     }

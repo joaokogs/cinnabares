@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getErrorMessage, readApiError } from "@/lib/error-messages"
 
 export function NewGuildForm() {
   const router = useRouter()
@@ -25,12 +26,12 @@ export function NewGuildForm() {
 
     try {
       const response = await fetch("/api/guilds", { method: "POST", body: formData })
-      const result = (await response.json()) as { error?: string; tag?: string }
-      if (!response.ok || !result.tag) throw new Error(result.error ?? "Nao foi possivel criar a guilda.")
+      const result = response.ok ? await response.json() as { tag?: string } : null
+      if (!response.ok || !result?.tag) throw new Error(await readApiError(response, "Não foi possível criar sua guilda. Confira os dados e tente novamente."))
       router.push(`/guildas/${result.tag}`)
       router.refresh()
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Nao foi possivel criar a guilda.")
+      setError(getErrorMessage(submitError, "Não foi possível criar sua guilda. Tente novamente em instantes."))
       setIsPending(false)
     }
   }
@@ -50,7 +51,7 @@ export function NewGuildForm() {
           <label className="block space-y-2 text-sm font-medium" htmlFor="guild-tag">
             Tag
             <input id="guild-tag" required minLength={1} maxLength={4} pattern="[a-z0-9][a-z0-9-]{0,3}" value={tag} onChange={(event) => setTag(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 4))} placeholder="CNB" className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />
-            <span className="text-xs text-muted-foreground">Ate 4 caracteres, sem espacos.</span>
+             <span className="text-xs text-muted-foreground">Até 4 caracteres, sem espaços.</span>
           </label>
           {error ? <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p> : null}
           <Button className="w-full" type="submit" disabled={isPending}>

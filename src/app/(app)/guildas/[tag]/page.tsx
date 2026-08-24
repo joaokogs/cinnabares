@@ -60,7 +60,7 @@ export default async function GuildPage({ params }: GuildPageProps) {
                 </div>
                 {isFounder ? <Button asChild variant="outline"><Link href={`/guildas/${currentGuild.tag}/admin`}><Settings aria-hidden="true" /> Administrar</Link></Button> : null}
               </div>
-              <p className="mt-6 max-w-3xl leading-7 text-muted-foreground">{currentGuild.description || "Esta guilda ainda nao adicionou uma descricao."}</p>
+              <p className="mt-6 max-w-3xl leading-7 text-muted-foreground">{currentGuild.description || "Esta guilda ainda não adicionou uma descrição."}</p>
             </div>
           </CardContent>
         </Card>

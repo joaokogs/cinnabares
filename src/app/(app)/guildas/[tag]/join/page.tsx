@@ -76,7 +76,7 @@ export default async function JoinPage({ params, searchParams }: JoinPageProps) 
           </CardHeader>
           <CardContent className="space-y-4 text-center">
             <p className="text-sm leading-6 text-muted-foreground">
-              {guild.description || "Esta guilda ainda nao adicionou uma descricao."}
+              {guild.description || "Esta guilda ainda não adicionou uma descrição."}
             </p>
             <p className="text-sm text-muted-foreground">
               Ao entrar, voce sera adicionado como membro com o cargo padrao <strong>Member</strong>.

@@ -6,10 +6,10 @@ import { auth } from "@/lib/auth"
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers })
-  if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 })
+  if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para entrar em uma guilda." }, { status: 401 })
 
   const body = (await request.json()) as { token?: string }
-  if (!body.token) return Response.json({ error: "Token de convite não fornecido." }, { status: 400 })
+  if (!body.token) return Response.json({ error: "O link de convite está incompleto. Solicite um novo convite ao fundador." }, { status: 400 })
 
   const [invite] = await db
     .select()
@@ -17,14 +17,14 @@ export async function POST(request: Request) {
     .where(eq(guildInvite.token, body.token))
     .limit(1)
 
-  if (!invite) return Response.json({ error: "Convite inválido ou expirado." }, { status: 404 })
+  if (!invite) return Response.json({ error: "Este convite não existe ou já foi revogado." }, { status: 404 })
 
   if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
-    return Response.json({ error: "Este convite já expirou." }, { status: 410 })
+    return Response.json({ error: "Este convite expirou. Solicite um novo link ao fundador." }, { status: 410 })
   }
 
   if (invite.maxUses !== null && invite.uses >= invite.maxUses) {
-    return Response.json({ error: "Este convite já atingiu o número máximo de uso." }, { status: 410 })
+    return Response.json({ error: "Este convite já atingiu o limite de usos." }, { status: 410 })
   }
 
   const [existingMembership] = await db
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     .limit(1)
 
   if (existingMembership) {
-    return Response.json({ error: "Você já pertence a uma guilda. Saia da guilda atual antes de entrar em outra." }, { status: 409 })
+    return Response.json({ error: "Você já pertence a uma guilda. Saia dela antes de entrar em outra." }, { status: 409 })
   }
 
   const [memberRole] = await db
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     .limit(1)
 
   if (!memberRole) {
-    return Response.json({ error: "Cargo padrão não encontrado na guilda." }, { status: 500 })
+    return Response.json({ error: "A guilda não está pronta para receber novos membros. Avise o fundador." }, { status: 500 })
   }
 
   try {
@@ -69,16 +69,16 @@ export async function POST(request: Request) {
     `)
 
     if (joined.rows.length === 0) {
-      return Response.json({ error: "Este convite já atingiu o número máximo de uso ou expirou." }, { status: 410 })
+      return Response.json({ error: "Este convite acabou de expirar ou atingir o limite de usos. Solicite outro link." }, { status: 410 })
     }
   } catch (error) {
     const databaseError = error as { cause?: { code?: string; constraint?: string } }
     if (databaseError.cause?.code === "23505") {
       if (databaseError.cause.constraint === "guild_member_user_unique") {
-        return Response.json({ error: "Você já pertence a uma guilda." }, { status: 409 })
+        return Response.json({ error: "Você já pertence a uma guilda. Saia dela antes de entrar em outra." }, { status: 409 })
       }
     }
-    return Response.json({ error: "Não foi possível entrar na guilda." }, { status: 500 })
+    return Response.json({ error: "Não foi possível concluir sua entrada na guilda. Tente novamente em instantes." }, { status: 500 })
   }
 
   const [guildData] = await db

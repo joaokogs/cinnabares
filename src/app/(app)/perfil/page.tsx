@@ -71,7 +71,7 @@ export default async function ProfilePage() {
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
                   <AtSign className="size-4 text-accent" aria-hidden="true" /> Username
                 </div>
-                <p className="mt-2 font-heading font-semibold">{player.username ?? "Nao informado"}</p>
+                <p className="mt-2 font-heading font-semibold">{player.username ?? "Não informado"}</p>
               </div>
               <div className="rounded-xl border border-border/70 bg-background/40 p-4">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">

@@ -1,4 +1,4 @@
-import { boolean, foreignKey, integer, jsonb, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core"
+import { boolean, foreignKey, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core"
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -13,6 +13,7 @@ export const user = pgTable("user", {
   image: text("image"),
   username: text("username").unique(),
   displayUsername: text("display_username"),
+  role: text("role").notNull().default("user"),
   ...timestamps,
 })
 
@@ -140,6 +141,108 @@ export const guildInvite = pgTable("guild_invite", {
   maxUses: integer("max_uses"),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   ...timestamps,
+})
+
+export const tournamentFormat = pgEnum("tournament_format", ["individual", "guild"])
+export const tournamentVisibility = pgEnum("tournament_visibility", ["blind", "partial", "total"])
+export const tournamentStatus = pgEnum("tournament_status", ["draft", "open", "closed", "active", "finished"])
+export const tournamentTier = pgEnum("tournament_tier", ["overused", "underused", "neverused", "doubles", "random"])
+export const registrationStatus = pgEnum("tournament_registration_status", ["pending", "approved", "rejected"])
+
+export type TournamentTier = "overused" | "underused" | "neverused" | "doubles" | "random"
+export type TournamentPokemon = { name: string; item?: string }
+export type TournamentRosterEntry = {
+  playerId: string
+  tier: TournamentTier
+  team?: TournamentPokemon[]
+}
+
+export const tournament = pgTable("tournament", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  format: tournamentFormat("format").notNull(),
+  tiers: jsonb("tiers").$type<TournamentTier[]>().notNull(),
+  tierRules: jsonb("tier_rules").$type<Partial<Record<TournamentTier, number>>>().notNull().default({}),
+  slots: integer("slots").notNull(),
+  visibility: tournamentVisibility("visibility").notNull().default("blind"),
+  status: tournamentStatus("status").notNull().default("draft"),
+  teamSize: integer("team_size").notNull().default(1),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "restrict" }),
+  ...timestamps,
+})
+
+export const tournamentRegistration = pgTable(
+  "tournament_registration",
+  {
+    id: text("id").primaryKey(),
+    tournamentId: text("tournament_id")
+      .notNull()
+      .references(() => tournament.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    guildId: text("guild_id").references(() => guild.id, { onDelete: "cascade" }),
+    status: registrationStatus("status").notNull().default("pending"),
+    roster: jsonb("roster").$type<TournamentRosterEntry[]>().notNull().default([]),
+    reviewedBy: text("reviewed_by").references(() => user.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    ...timestamps,
+  },
+  (table) => [
+    unique("tournament_registration_user_unique").on(table.tournamentId, table.userId),
+    unique("tournament_registration_guild_unique").on(table.tournamentId, table.guildId),
+  ]
+)
+
+export const bracketMatchStatus = pgEnum("bracket_match_status", ["pending", "completed"])
+
+export const bracket = pgTable("bracket", {
+  id: text("id").primaryKey(),
+  tournamentId: text("tournament_id")
+    .notNull()
+    .references(() => tournament.id, { onDelete: "cascade" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  ...timestamps,
+}, (table) => [unique("bracket_tournament_unique").on(table.tournamentId)])
+
+export const bracketMatch = pgTable(
+  "bracket_match",
+  {
+    id: text("id").primaryKey(),
+    bracketId: text("bracket_id")
+      .notNull()
+      .references(() => bracket.id, { onDelete: "cascade" }),
+    phase: integer("phase").notNull(),
+    position: integer("position").notNull(),
+    slot1RegistrationId: text("slot1_registration_id")
+      .references(() => tournamentRegistration.id, { onDelete: "set null" }),
+    slot2RegistrationId: text("slot2_registration_id")
+      .references(() => tournamentRegistration.id, { onDelete: "set null" }),
+    winnerRegistrationId: text("winner_registration_id")
+      .references(() => tournamentRegistration.id, { onDelete: "set null" }),
+    status: bracketMatchStatus("status").notNull().default("pending"),
+    ...timestamps,
+  },
+  (table) => [unique("bracket_match_bracket_phase_position_unique").on(table.bracketId, table.phase, table.position)]
+)
+
+export const bracketActionLog = pgTable("bracket_action_log", {
+  id: text("id").primaryKey(),
+  bracketId: text("bracket_id")
+    .notNull()
+    .references(() => bracket.id, { onDelete: "cascade" }),
+  matchId: text("match_id")
+    .notNull()
+    .references(() => bracketMatch.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  winnerRegistrationId: text("winner_registration_id")
+    .references(() => tournamentRegistration.id, { onDelete: "set null" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const authSchema = { user, session, account, verification }

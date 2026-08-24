@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
+import { getErrorMessage, readApiError } from "@/lib/error-messages"
 
 type JoinGuildButtonProps = { tag: string; token: string }
 
@@ -24,12 +25,12 @@ export function JoinGuildButton({ tag, token }: JoinGuildButtonProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       })
-      const result = (await response.json()) as { error?: string; tag?: string }
-      if (!response.ok) throw new Error(result.error ?? "Nao foi possivel entrar na guilda.")
-      router.push(`/guildas/${result.tag ?? tag}`)
+      const result = response.ok ? await response.json() as { tag?: string } : null
+      if (!response.ok) throw new Error(await readApiError(response, "Não foi possível entrar na guilda. Verifique o convite e tente novamente."))
+      router.push(`/guildas/${result?.tag ?? tag}`)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel entrar na guilda.")
+      setError(getErrorMessage(err, "Não foi possível entrar na guilda. Tente novamente em instantes."))
       setIsJoining(false)
     }
   }

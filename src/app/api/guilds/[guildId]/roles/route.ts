@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ guildId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: request.headers })
-  if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 })
+  if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
   const [currentGuild] = await db
@@ -19,7 +19,7 @@ export async function POST(
     .where(eq(guild.id, guildId))
     .limit(1)
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
-    return Response.json({ error: "Apenas o fundador pode criar cargos." }, { status: 403 })
+    return Response.json({ error: "Você não tem permissão para criar cargos. Apenas o fundador pode fazer isso." }, { status: 403 })
   }
 
   const body = (await request.json()) as { name?: string; color?: string }
@@ -37,7 +37,7 @@ export async function POST(
     .from(guildRole)
     .where(and(eq(guildRole.guildId, guildId), eq(guildRole.name, name)))
     .limit(1)
-  if (existingRole) return Response.json({ error: "Já existe um cargo com esse nome." }, { status: 409 })
+  if (existingRole) return Response.json({ error: "Já existe um cargo com esse nome. Escolha outro." }, { status: 409 })
 
   const [role] = await db
     .insert(guildRole)

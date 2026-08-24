@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getErrorMessage, readApiError } from "@/lib/error-messages"
 
 type InvitePanelProps = { guildId: string }
 
@@ -26,11 +27,11 @@ export function InvitePanel({ guildId }: InvitePanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       })
-      const result = (await response.json()) as { error?: string; url?: string }
-      if (!response.ok || !result.url) throw new Error(result.error ?? "Nao foi possivel gerar o convite.")
+      const result = response.ok ? await response.json() as { url?: string } : null
+      if (!response.ok || !result?.url) throw new Error(await readApiError(response, "Não foi possível gerar o convite. Tente novamente."))
       setInviteUrl(result.url)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel gerar o convite.")
+      setError(getErrorMessage(err, "Não foi possível gerar o convite. Tente novamente."))
     } finally {
       setIsGenerating(false)
     }
@@ -55,7 +56,7 @@ export function InvitePanel({ guildId }: InvitePanelProps) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch {
-        setError("Nao foi possivel copiar o link.")
+        setError("Não foi possível copiar o link. Copie o endereço manualmente e tente novamente.")
       }
       document.body.removeChild(textarea)
     }
@@ -96,7 +97,7 @@ export function InvitePanel({ guildId }: InvitePanelProps) {
                 {copied ? "Copiado!" : "Copiar"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Qualquer pessoa com este link podera entrar na guilda.</p>
+             <p className="text-xs text-muted-foreground">Qualquer pessoa com este link poderá entrar na guilda.</p>
           </div>
         ) : null}
 

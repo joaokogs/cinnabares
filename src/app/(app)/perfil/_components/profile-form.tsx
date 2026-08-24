@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 
 import { authClient } from "@/lib/auth-client"
+import { getAuthErrorMessage } from "@/lib/error-messages"
 import { Button } from "@/components/ui/button"
 
 type ProfileFormProps = {
@@ -37,14 +38,14 @@ export function ProfileForm({ initialName, initialUsername }: ProfileFormProps) 
       })
 
       if (result.error) {
-        const message = result.error.message ?? "Nao foi possivel atualizar o perfil."
+        const message = getAuthErrorMessage(result.error.message, "Não foi possível atualizar seu perfil. Confira os dados e tente novamente.")
         setError(message)
       } else {
         setSuccess("Perfil atualizado com sucesso.")
         router.refresh()
       }
     } catch {
-      setError("Nao foi possivel atualizar o perfil.")
+      setError("Não foi possível conectar ao serviço de perfil. Tente novamente em instantes.")
     } finally {
       setIsPending(false)
     }
@@ -77,7 +78,7 @@ export function ProfileForm({ initialName, initialUsername }: ProfileFormProps) 
           placeholder="seu-username"
           className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
         />
-        <span className="text-xs text-muted-foreground">Minusculos, numeros, hifens e underscores.</span>
+        <span className="text-xs text-muted-foreground">Use minúsculas, números, hífens e underscores.</span>
       </label>
 
       {error ? (
@@ -97,7 +98,7 @@ export function ProfileForm({ initialName, initialUsername }: ProfileFormProps) 
         {isPending ? (
           <><LoaderCircle className="animate-spin" aria-hidden="true" /> Salvando...</>
         ) : (
-          <><User className="size-4" aria-hidden="true" /> Salvar alteracoes</>
+          <><User className="size-4" aria-hidden="true" /> Salvar alterações</>
         )}
       </Button>
     </form>
