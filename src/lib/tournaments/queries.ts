@@ -108,8 +108,10 @@ export async function getBracketMatchesWithRegistrations(bracketId: string) {
       status: bracketMatch.status,
       slot1Name: sql<string>`coalesce(${guild.name}, ${user.username}, ${user.name}, 'bye')`,
       slot1GuildTag: guild.tag,
+      slot1Roster: tournamentRegistration.roster,
       slot2Name: sql<string>`coalesce(${slot2Guild.name}, ${slot2User.username}, ${slot2User.name}, 'bye')`,
       slot2GuildTag: slot2Guild.tag,
+      slot2Roster: slot2Reg.roster,
       winnerName: sql<string>`coalesce(${winnerGuild.name}, ${winnerUser.username}, ${winnerUser.name})`,
     })
     .from(bracketMatch)

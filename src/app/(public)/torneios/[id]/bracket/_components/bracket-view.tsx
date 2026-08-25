@@ -1,11 +1,15 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
-import { Trophy, Swords } from "lucide-react"
+import { Trophy, Swords, Undo2 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { getPhaseLabel } from "@/lib/tournaments/bracket"
+import type { TournamentRosterEntry } from "@/db/schema"
+import { ParticipantSidebar } from "./participant-popover"
+
+type Visibility = "blind" | "partial" | "total"
 
 type Match = {
   id: string
@@ -17,13 +21,15 @@ type Match = {
   status: "pending" | "completed"
   slot1Name: string
   slot1GuildTag: string | null
+  slot1Roster: TournamentRosterEntry[]
   slot2Name: string
   slot2GuildTag: string | null
+  slot2Roster: TournamentRosterEntry[]
   winnerName: string | null
 }
 
 type BracketData = {
-  tournament: { name: string; status: string }
+  tournament: { name: string; status: string; visibility: Visibility }
   totalPhases: number
   matches: Match[]
   champion: { registrationId: string | null; name: string | null } | null
@@ -38,17 +44,51 @@ type BracketViewProps = {
   revertingMatchId?: string | null
 }
 
-function MatchCard({ match, adminMode, onResolve, onRevert, resolving, reverting }: {
+function SlotName({
+  name,
+  guildTag,
+  roster,
+  visibility,
+  isWinner,
+  isComplete,
+}: {
+  name: string
+  guildTag: string | null
+  roster: TournamentRosterEntry[]
+  visibility: Visibility
+  isWinner: boolean
+  isComplete: boolean
+}) {
+  const label = guildTag ? `${name} [${guildTag}]` : name
+
+  return (
+    <span className={cn("flex items-center gap-1.5 truncate", isWinner && "font-semibold text-primary")}>
+      <ParticipantSidebar name={label} roster={roster} visibility={visibility}>
+        <span className="truncate cursor-pointer underline-offset-2 hover:underline">{label}</span>
+      </ParticipantSidebar>
+      {isWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
+    </span>
+  )
+}
+
+function MatchCard({
+  match,
+  adminMode,
+  visibility,
+  onResolve,
+  onRevert,
+  resolving,
+  reverting,
+}: {
   match: Match
   adminMode?: boolean
+  visibility: Visibility
   onResolve?: (matchId: string, winnerRegistrationId: string) => void
   onRevert?: (matchId: string) => void
   resolving?: boolean
   reverting?: boolean
 }) {
   const isComplete = match.status === "completed"
-  const slot1Label = match.slot1GuildTag ? `${match.slot1Name} [${match.slot1GuildTag}]` : match.slot1Name
-  const slot2Label = match.slot2GuildTag ? `${match.slot2Name} [${match.slot2GuildTag}]` : match.slot2Name
   const slot1IsWinner = match.winnerRegistrationId === match.slot1RegistrationId
   const slot2IsWinner = match.winnerRegistrationId === match.slot2RegistrationId
   const slot2IsBye = !match.slot2RegistrationId
@@ -56,39 +96,54 @@ function MatchCard({ match, adminMode, onResolve, onRevert, resolving, reverting
 
   return (
     <div className="w-56 shrink-0 rounded-lg border border-border bg-background/60 p-0 text-sm">
-      <button
-        type="button"
-        disabled={!adminMode || !isComplete || busy || reverting}
-        onClick={() => { if (adminMode && isComplete && onRevert) onRevert(match.id) }}
+      <div
         className={cn(
-          "flex w-full items-center justify-between gap-2 border-b border-border/50 px-3 py-2 text-left transition-colors",
+          "flex w-full items-center justify-between gap-2 border-b border-border/50 px-3 py-2",
           slot1IsWinner && "bg-primary/10",
-          adminMode && isComplete && "cursor-pointer hover:bg-destructive/5",
-          reverting && "animate-pulse opacity-60",
         )}
-        aria-label={adminMode && isComplete ? `Desfazer resultado: ${slot1Label} vs ${slot2IsBye ? "BYE" : slot2Label}` : undefined}
       >
-        <span className={cn("truncate", slot1IsWinner && "font-semibold text-primary")}>{slot1Label}</span>
-        {slot1IsWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
-      </button>
+        <SlotName
+          name={match.slot1Name}
+          guildTag={match.slot1GuildTag}
+          roster={match.slot1Roster}
+          visibility={visibility}
+          isWinner={slot1IsWinner}
+          isComplete={isComplete}
+        />
+        {adminMode && isComplete ? (
+          <button
+            type="button"
+            disabled={busy || reverting}
+            onClick={() => onRevert?.(match.id)}
+            className={cn(
+              "shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive",
+              reverting && "animate-pulse opacity-60",
+            )}
+            aria-label={`Desfazer resultado de ${match.slot1Name}`}
+          >
+            <Undo2 className="size-3" />
+          </button>
+        ) : null}
+      </div>
 
-      <button
-        type="button"
-        disabled={!adminMode || !isComplete || busy || reverting}
-        onClick={() => { if (adminMode && isComplete && onRevert) onRevert(match.id) }}
+      <div
         className={cn(
-          "flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors",
+          "flex w-full items-center justify-between gap-2 px-3 py-2",
           slot2IsWinner && "bg-primary/10",
-          adminMode && isComplete && "cursor-pointer hover:bg-destructive/5",
-          reverting && "animate-pulse opacity-60",
         )}
-        aria-label={adminMode && isComplete ? `Desfazer resultado: ${slot1Label} vs ${slot2IsBye ? "BYE" : slot2Label}` : undefined}
       >
-        <span className={cn("truncate", slot2IsWinner && "font-semibold text-primary")}>
-          {slot2IsBye ? "BYE" : slot2Label}
-        </span>
-        {slot2IsWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
-      </button>
+        <SlotName
+          name={match.slot2Name}
+          guildTag={match.slot2GuildTag}
+          roster={match.slot2Roster}
+          visibility={visibility}
+          isWinner={slot2IsWinner}
+          isComplete={isComplete}
+        />
+        {slot2IsBye ? (
+          <span className="text-xs text-muted-foreground">BYE</span>
+        ) : null}
+      </div>
 
       {adminMode && !isComplete && match.slot1RegistrationId && match.slot2RegistrationId ? (
         <div className="flex border-t border-border/50">
@@ -101,7 +156,7 @@ function MatchCard({ match, adminMode, onResolve, onRevert, resolving, reverting
               busy && "animate-pulse opacity-60",
             )}
           >
-            {slot1Label}
+            {match.slot1GuildTag ? `${match.slot1Name} [${match.slot1GuildTag}]` : match.slot1Name}
           </button>
           <div className="w-px bg-border/50" aria-hidden="true" />
           <button
@@ -113,7 +168,7 @@ function MatchCard({ match, adminMode, onResolve, onRevert, resolving, reverting
               busy && "animate-pulse opacity-60",
             )}
           >
-            {slot2Label}
+            {match.slot2GuildTag ? `${match.slot2Name} [${match.slot2GuildTag}]` : match.slot2Name}
           </button>
         </div>
       ) : null}
@@ -210,6 +265,7 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
                     key={match.id}
                     match={match}
                     adminMode={adminMode}
+                    visibility={data.tournament.visibility}
                     onResolve={onResolve}
                     onRevert={onRevert}
                     resolving={resolvingMatchId === match.id}

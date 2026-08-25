@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm"
 
 import { db } from "@/db"
 import { bracket, bracketMatch, tournament, tournamentRegistration } from "@/db/schema"
+import type { TournamentRosterEntry } from "@/db/schema"
 import { getAdminSession } from "@/lib/tournaments/auth"
 import { generateBracketMatches } from "@/lib/tournaments/bracket"
 import { getBracketByTournamentId, getBracketMatchesWithRegistrations, getTournament } from "@/lib/tournaments/queries"
@@ -19,6 +20,11 @@ type BracketMatchRow = {
   winnerRegistrationId: string | null
 }
 
+function safeRoster(raw: unknown): TournamentRosterEntry[] {
+  if (!Array.isArray(raw)) return []
+  return raw as TournamentRosterEntry[]
+}
+
 export async function GET(_request: Request, { params }: RouteProps) {
   const { id } = await params
   const currentTournament = await getTournament(id)
@@ -33,9 +39,13 @@ export async function GET(_request: Request, { params }: RouteProps) {
   const champion = matches.find((m) => m.phase === totalPhases - 1 && m.status === "completed")
 
   return Response.json({
-    tournament: { name: currentTournament.name, status: currentTournament.status },
+    tournament: { name: currentTournament.name, status: currentTournament.status, visibility: currentTournament.visibility },
     totalPhases,
-    matches,
+    matches: matches.map((m) => ({
+      ...m,
+      slot1Roster: safeRoster(m.slot1Roster),
+      slot2Roster: safeRoster(m.slot2Roster),
+    })),
     champion: champion ? { registrationId: champion.winnerRegistrationId, name: champion.winnerName } : null,
   })
 }
