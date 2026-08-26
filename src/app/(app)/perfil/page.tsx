@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth"
 import { AvatarUploader } from "./_components/avatar-uploader"
 import { SignOutButton } from "./_components/sign-out-button"
 import { ProfileForm } from "./_components/profile-form"
+import { PlayerTournamentStats } from "./_components/tournament-stats"
 
 export const metadata: Metadata = {
   title: "Meu perfil",
@@ -86,6 +87,8 @@ export default async function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        <PlayerTournamentStats userId={session.user.id} />
       </div>
     </main>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Flame,
@@ -79,6 +80,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
     { href: guild ? `/guildas/${guild.tag}` : "/guildas", label: "Minha guilda", icon: Shield, disabled: !guild },
     { href: "/guildas", label: "Explorar guildas", icon: Search },
     { href: "/torneios", label: "Torneios", icon: Swords },
+    { href: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
     ...(user.role === "admin" ? [{ href: "/torneios/novo", label: "Criar torneio", icon: Swords }] : []),
   ]
   const activeNavItem = navItems

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { GuildImage } from "@/components/shared/guild-image"
 import { getGuildByTag, getGuildMembers, getGuildRoles } from "@/lib/guilds/queries"
+import { GuildTournamentStats } from "./_components/tournament-stats"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 
@@ -100,6 +101,8 @@ export default async function GuildPage({ params }: GuildPageProps) {
             </CardContent>
           </Card>
         </div>
+
+        <GuildTournamentStats guildId={currentGuild.id} />
       </div>
     </main>
   )
