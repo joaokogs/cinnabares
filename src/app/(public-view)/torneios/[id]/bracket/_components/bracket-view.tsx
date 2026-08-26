@@ -1,12 +1,15 @@
-﻿"use client"
+"use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Trophy, Swords, Undo2 } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { readApiError } from "@/lib/error-messages"
 import { cn } from "@/lib/utils"
 import { getPhaseLabel } from "@/lib/tournaments/bracket"
-import type { TournamentRosterEntry } from "@/db/schema"
+import type { VisibleRosterEntry } from "@/lib/tournaments/roster"
+import { BracketHistorySidebar } from "./bracket-history-sidebar"
 import { ParticipantSidebar } from "./participant-popover"
 
 type Visibility = "blind" | "partial" | "total"
@@ -21,10 +24,10 @@ type Match = {
   status: "pending" | "completed"
   slot1Name: string
   slot1GuildTag: string | null
-  slot1Roster: TournamentRosterEntry[]
+  slot1Roster: VisibleRosterEntry[]
   slot2Name: string
   slot2GuildTag: string | null
-  slot2Roster: TournamentRosterEntry[]
+  slot2Roster: VisibleRosterEntry[]
   winnerName: string | null
 }
 
@@ -33,6 +36,13 @@ type BracketData = {
   totalPhases: number
   matches: Match[]
   champion: { registrationId: string | null; name: string | null } | null
+}
+
+type ConfirmAction = {
+  type: "resolve" | "revert"
+  matchId: string
+  label: string
+  winnerRegistrationId?: string
 }
 
 type BracketViewProps = {
@@ -54,7 +64,7 @@ function SlotName({
 }: {
   name: string
   guildTag: string | null
-  roster: TournamentRosterEntry[]
+  roster: VisibleRosterEntry[]
   visibility: Visibility
   isWinner: boolean
   isComplete: boolean
@@ -179,6 +189,33 @@ function MatchCard({
 export function BracketView({ tournamentId, adminMode, onResolve, onRevert, resolvingMatchId, revertingMatchId }: BracketViewProps) {
   const [data, setData] = useState<BracketData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const internalResolve = adminMode && !onResolve
+  const internalRevert = adminMode && !onRevert
+
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [revertingId, setRevertingId] = useState<string | null>(null)
+
+  const activeResolving = resolvingMatchId ?? (internalResolve ? resolvingId : null)
+  const activeReverting = revertingMatchId ?? (internalRevert ? revertingId : null)
+
+  const loadBracket = useCallback(async () => {
+    try {
+      const result = await fetch(`/api/tournaments/${tournamentId}/bracket`)
+      if (!result.ok) {
+        const body = await result.json() as { error?: string }
+        setError(body.error ?? "Não foi possível carregar a chave.")
+        return
+      }
+      const json = await result.json() as BracketData
+      setData(json)
+      setError(null)
+    } catch {
+      setError("Erro de conexão ao carregar a chave.")
+    }
+  }, [tournamentId])
 
   useEffect(() => {
     let cancelled = false
@@ -209,7 +246,71 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
     return () => { cancelled = true; if (timeout) clearTimeout(timeout) }
   }, [tournamentId])
 
-  if (error) {
+  async function executeResolve(matchId: string, winnerRegistrationId: string) {
+    setError(null)
+    setSuccess(null)
+    setResolvingId(matchId)
+    const result = await fetch(`/api/tournaments/${tournamentId}/bracket/matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ winnerRegistrationId }),
+    })
+    setResolvingId(null)
+    if (!result.ok) {
+      setError(await readApiError(result, "Não foi possível definir o vencedor. Tente novamente."))
+      return
+    }
+    setSuccess("Partida finalizada com sucesso.")
+    void loadBracket()
+  }
+
+  async function executeRevert(matchId: string) {
+    setError(null)
+    setSuccess(null)
+    setRevertingId(matchId)
+    const result = await fetch(`/api/tournaments/${tournamentId}/bracket/matches/${matchId}`, { method: "DELETE" })
+    setRevertingId(null)
+    if (!result.ok) {
+      setError(await readApiError(result, "Não foi possível desfazer o resultado. Tente novamente."))
+      return
+    }
+    setSuccess("Resultado desfeito com sucesso.")
+    void loadBracket()
+  }
+
+  function handleInternalResolve(matchId: string, winnerRegistrationId: string) {
+    if (!data) return
+    const bracketMatch = data.matches.find((m) => m.id === matchId)
+    if (!bracketMatch) return
+    const winnerName = winnerRegistrationId === bracketMatch.slot1RegistrationId
+      ? (bracketMatch.slot1GuildTag ? `${bracketMatch.slot1Name} [${bracketMatch.slot1GuildTag}]` : bracketMatch.slot1Name)
+      : (bracketMatch.slot2GuildTag ? `${bracketMatch.slot2Name} [${bracketMatch.slot2GuildTag}]` : bracketMatch.slot2Name)
+    setConfirmAction({ type: "resolve", matchId, label: winnerName, winnerRegistrationId })
+  }
+
+  function handleInternalRevert(matchId: string) {
+    if (!data) return
+    const bracketMatch = data.matches.find((m) => m.id === matchId)
+    if (!bracketMatch) return
+    const slot1Label = bracketMatch.slot1GuildTag ? `${bracketMatch.slot1Name} [${bracketMatch.slot1GuildTag}]` : bracketMatch.slot1Name
+    const slot2Label = bracketMatch.slot2GuildTag ? `${bracketMatch.slot2Name} [${bracketMatch.slot2GuildTag}]` : bracketMatch.slot2Name
+    setConfirmAction({ type: "revert", matchId, label: `${slot1Label} vs ${slot2Label}` })
+  }
+
+  function executeConfirm() {
+    if (!confirmAction) return
+    if (confirmAction.type === "resolve" && confirmAction.winnerRegistrationId) {
+      void executeResolve(confirmAction.matchId, confirmAction.winnerRegistrationId)
+    } else if (confirmAction.type === "revert") {
+      void executeRevert(confirmAction.matchId)
+    }
+    setConfirmAction(null)
+  }
+
+  const resolveHandler = internalResolve ? handleInternalResolve : onResolve
+  const revertHandler = internalRevert ? handleInternalRevert : onRevert
+
+  if (error && !data) {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
         <p className="text-sm text-destructive" role="alert">{error}</p>
@@ -238,6 +339,24 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
 
   return (
     <div className="space-y-6">
+      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+      {success ? <p className="text-sm text-primary" role="status">{success}</p> : null}
+
+      {confirmAction ? (
+        <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
+          <p className="text-sm font-medium">
+            {confirmAction.type === "resolve"
+              ? <>Definir <strong>{confirmAction.label}</strong> como vencedor?</>
+              : <>Desfazer o resultado de <strong>{confirmAction.label}</strong>?</>
+            }
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={executeConfirm}>Confirmar</Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+          </div>
+        </div>
+      ) : null}
+
       {data.champion ? (
         <Card className="border-accent/40 bg-accent/5">
           <CardContent className="flex items-center gap-4 py-4">
@@ -251,6 +370,13 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
           </CardContent>
         </Card>
       ) : null}
+
+      {adminMode ? (
+        <div className="flex items-center gap-2">
+          <BracketHistorySidebar tournamentId={tournamentId} totalPhases={data.totalPhases} />
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-6" role="region" aria-label="Chave do torneio">
           {Array.from(phases.entries()).map(([phase, matches]) => (
@@ -266,10 +392,10 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
                     match={match}
                     adminMode={adminMode}
                     visibility={data.tournament.visibility}
-                    onResolve={onResolve}
-                    onRevert={onRevert}
-                    resolving={resolvingMatchId === match.id}
-                    reverting={revertingMatchId === match.id}
+                    onResolve={resolveHandler}
+                    onRevert={revertHandler}
+                    resolving={activeResolving === match.id}
+                    reverting={activeReverting === match.id}
                   />
                 ))}
               </div>

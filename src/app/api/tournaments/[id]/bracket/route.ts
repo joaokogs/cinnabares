@@ -4,9 +4,11 @@ import { and, eq } from "drizzle-orm"
 import { db } from "@/db"
 import { bracket, bracketMatch, tournament, tournamentRegistration } from "@/db/schema"
 import type { TournamentRosterEntry } from "@/db/schema"
-import { getAdminSession } from "@/lib/tournaments/auth"
+import { canViewTournamentParticipants, getAdminSession } from "@/lib/tournaments/auth"
+import { auth } from "@/lib/auth"
 import { generateBracketMatches } from "@/lib/tournaments/bracket"
 import { getBracketByTournamentId, getBracketMatchesWithRegistrations, getTournament } from "@/lib/tournaments/queries"
+import { getVisibleRoster } from "@/lib/tournaments/roster"
 
 type RouteProps = { params: Promise<{ id: string }> }
 type BracketMatchRow = {
@@ -25,10 +27,16 @@ function safeRoster(raw: unknown): TournamentRosterEntry[] {
   return raw as TournamentRosterEntry[]
 }
 
-export async function GET(_request: Request, { params }: RouteProps) {
+export async function GET(request: Request, { params }: RouteProps) {
   const { id } = await params
   const currentTournament = await getTournament(id)
   if (!currentTournament) return Response.json({ error: "Não encontramos esse torneio." }, { status: 404 })
+
+  const session = await auth.api.getSession({ headers: request.headers })
+  if (!session) return Response.json({ error: "Entre na sua conta para ver a chave." }, { status: 401 })
+  if (!await canViewTournamentParticipants(id, session.user.id)) {
+    return Response.json({ error: "Somente inscritos aprovados podem ver a chave do torneio." }, { status: 403 })
+  }
 
   const currentBracket = await getBracketByTournamentId(id)
   if (!currentBracket) return Response.json({ error: "A chave ainda não foi iniciada." }, { status: 404 })
@@ -43,8 +51,8 @@ export async function GET(_request: Request, { params }: RouteProps) {
     totalPhases,
     matches: matches.map((m) => ({
       ...m,
-      slot1Roster: safeRoster(m.slot1Roster),
-      slot2Roster: safeRoster(m.slot2Roster),
+      slot1Roster: getVisibleRoster(safeRoster(m.slot1Roster), currentTournament.visibility),
+      slot2Roster: getVisibleRoster(safeRoster(m.slot2Roster), currentTournament.visibility),
     })),
     champion: champion ? { registrationId: champion.winnerRegistrationId, name: champion.winnerName } : null,
   })

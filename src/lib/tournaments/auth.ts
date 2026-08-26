@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/db"
 import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { getUserTournamentRegistration } from "@/lib/tournaments/queries"
 
 export async function getAdminSession(headers: Headers) {
   const session = await auth.api.getSession({ headers })
@@ -18,4 +19,13 @@ export async function getAdminSession(headers: Headers) {
   }
 
   return { session, response: null }
+}
+
+export async function canViewTournamentParticipants(tournamentId: string, userId: string) {
+  const [account, registration] = await Promise.all([
+    db.select({ role: user.role }).from(user).where(eq(user.id, userId)).limit(1),
+    getUserTournamentRegistration(tournamentId, userId),
+  ])
+
+  return account[0]?.role === "admin" || registration?.status === "approved"
 }

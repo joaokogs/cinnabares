@@ -79,6 +79,23 @@ export async function listTournamentRegistrations(tournamentId: string) {
     .orderBy(asc(tournamentRegistration.status), asc(tournamentRegistration.createdAt))
 }
 
+export async function listApprovedTournamentParticipants(tournamentId: string) {
+  return db
+    .select({
+      id: tournamentRegistration.id,
+      roster: tournamentRegistration.roster,
+      userName: user.name,
+      username: user.username,
+      guildName: guild.name,
+      guildTag: guild.tag,
+    })
+    .from(tournamentRegistration)
+    .leftJoin(user, eq(tournamentRegistration.userId, user.id))
+    .leftJoin(guild, eq(tournamentRegistration.guildId, guild.id))
+    .where(and(eq(tournamentRegistration.tournamentId, tournamentId), eq(tournamentRegistration.status, "approved")))
+    .orderBy(asc(tournamentRegistration.createdAt))
+}
+
 export async function getBracketByTournamentId(tournamentId: string) {
   const [result] = await db.select().from(bracket).where(eq(bracket.tournamentId, tournamentId)).limit(1)
   return result ?? null

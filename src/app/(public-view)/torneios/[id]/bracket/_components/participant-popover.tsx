@@ -4,7 +4,7 @@ import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CircleDot, Package, X } from "lucide-react"
 
-import type { TournamentRosterEntry } from "@/db/schema"
+import type { VisibleRosterEntry } from "@/lib/tournaments/roster"
 
 type Visibility = "blind" | "partial" | "total"
 
@@ -57,7 +57,7 @@ export function ParticipantSidebar({
   children,
 }: {
   name: string
-  roster: TournamentRosterEntry[]
+  roster: VisibleRosterEntry[]
   visibility: Visibility
   children: React.ReactNode
 }) {
@@ -74,7 +74,7 @@ export function ParticipantSidebar({
 
 const FOCUSABLE_SELECTOR = "a[href], button:not([disabled]), textarea, input, select, " + '[tabindex]:not([tabindex="-1"])'
 
-function SidebarTrigger({ name, roster, showItems, children }: { name: string; roster: TournamentRosterEntry[]; showItems: boolean; children: React.ReactNode }) {
+function SidebarTrigger({ name, roster, showItems, children }: { name: string; roster: VisibleRosterEntry[]; showItems: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -101,7 +101,7 @@ function SidebarTrigger({ name, roster, showItems, children }: { name: string; r
   )
 }
 
-function SidebarState({ name, roster, showItems, onClose }: { name: string; roster: TournamentRosterEntry[]; showItems: boolean; onClose: () => void }) {
+function SidebarState({ name, roster, showItems, onClose }: { name: string; roster: VisibleRosterEntry[]; showItems: boolean; onClose: () => void }) {
   const asideRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -162,7 +162,7 @@ function SidebarState({ name, roster, showItems, onClose }: { name: string; rost
   )
 }
 
-function SidebarContent({ name, roster, showItems }: { name: string; roster: TournamentRosterEntry[]; showItems: boolean }) {
+function SidebarContent({ name, roster, showItems }: { name: string; roster: VisibleRosterEntry[]; showItems: boolean }) {
   return roster.map((entry, i) => (
     <section key={`${name}-${i}`} className="border-b border-border/60 pb-4 last:border-0">
       {entry.team && entry.team.length > 0 ? (
