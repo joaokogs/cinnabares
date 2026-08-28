@@ -10,14 +10,15 @@ import type {
   ChampionTournament,
   ChampionStat,
   ItemStat,
+  PokemonItemUsage,
   PlayerPokemonStat,
   PlayerRosterSource,
-  PokemonItemUsage,
   PokemonStat,
 } from "./stats-core"
 import {
   computeChampionPokemonItemUsage,
   computePlayerTopPokemon,
+  computePlayerTopPokemonWithItems,
   computeTopChampions,
   computeTopWinningItems,
   computeTopWinningPokemon,
@@ -26,7 +27,7 @@ import {
 
 export type StatsFilters = {
   tier?: TournamentTier
-  format?: "individual" | "guild"
+  format?: "guild"
   from?: Date
   to?: Date
 }
@@ -68,7 +69,7 @@ export type MemberFavorite = {
 
 export type PlayerStats = {
   history: PlayerTournamentResult[]
-  favorite: PlayerPokemonStat[]
+  favorite: PokemonItemUsage[]
 }
 
 export type GuildStats = {
@@ -306,7 +307,7 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
       roster: (row.roster ?? []) as TournamentRosterEntry[],
     }))
 
-  return { history, favorite: computePlayerTopPokemon(sources, userId, { limit: 5 }) }
+  return { history, favorite: computePlayerTopPokemonWithItems(sources, userId, { limit: 6, itemsLimit: 3 }) }
 }
 
 export async function getGuildStats(guildId: string): Promise<GuildStats> {

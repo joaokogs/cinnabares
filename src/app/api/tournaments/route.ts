@@ -21,6 +21,10 @@ function readTournamentInput(body: unknown) {
   const tiers = Array.isArray(input.tiers) ? input.tiers.filter((tier): tier is string => typeof tier === "string") : []
   const slots = typeof input.slots === "number" ? input.slots : Number(input.slots)
   const visibility = typeof input.visibility === "string" ? input.visibility : ""
+  const scheduledDate = typeof input.scheduledDate === "string" ? input.scheduledDate.trim() : ""
+  const scheduledTime = typeof input.scheduledTime === "string" ? input.scheduledTime.trim() : ""
+  const location = typeof input.location === "string" ? input.location.trim() : ""
+  const reward = input.reward === undefined ? "" : typeof input.reward === "string" ? input.reward.trim() : null
   const rawRules = input.tierRules && typeof input.tierRules === "object" ? input.tierRules as Record<string, unknown> : {}
   const tierRules = Object.fromEntries(Object.entries(rawRules).map(([tier, amount]) => [tier, Number(amount)]))
 
@@ -31,6 +35,28 @@ function readTournamentInput(body: unknown) {
   if (format === "individual" && tiers.length !== 1) return { error: "Torneios individuais devem ter exatamente um tier." as const }
   if (!validSlots.has(slots)) return { error: "Escolha uma quantidade de vagas: 8, 16, 32, 64 ou 128." as const }
   if (!validVisibility.has(visibility)) return { error: "Escolha como os times serão exibidos durante a inscrição." as const }
+  const dateParts = scheduledDate.split("-").map(Number)
+  const [year, month, day] = dateParts
+  const parsedDate = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 0))
+  if (
+    dateParts.length !== 3 ||
+    dateParts.some((part) => Number.isNaN(part)) ||
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  ) return { error: "Informe uma data válida do torneio no formato AAAA-MM-DD." as const }
+
+  const timeMatch = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(scheduledTime)
+  const hour = timeMatch ? Number(timeMatch[1]) : NaN
+  const minute = timeMatch ? Number(timeMatch[2]) : NaN
+  const second = timeMatch && timeMatch[3] ? Number(timeMatch[3]) : 0
+  if (!timeMatch || Number.isNaN(hour) || Number.isNaN(minute) || hour > 23 || minute > 59 || second > 59) {
+    return { error: "Informe uma hora válida do torneio no formato HH:MM." as const }
+  }
+  if (!location) return { error: "Informe o local no jogo do torneio." as const }
+  if (location.length > 200) return { error: "O local deve ter no máximo 200 caracteres." as const }
+  if (reward === null) return { error: "A recompensa deve ser informada como texto." as const }
+  if (reward.length > 500) return { error: "A recompensa deve ter no máximo 500 caracteres." as const }
 
   const normalizedRules = Object.fromEntries(tiers.map((tier) => [tier, Math.max(0, Math.floor(tierRules[tier] ?? 0))]))
   if (format === "guild" && Object.values(normalizedRules).reduce((sum, amount) => sum + amount, 0) !== 5) {
@@ -46,6 +72,10 @@ function readTournamentInput(body: unknown) {
       tierRules: normalizedRules,
       slots,
       visibility: visibility as "blind" | "partial" | "total",
+      scheduledDate,
+      scheduledTime,
+      location,
+      reward,
       teamSize: format === "guild" ? 5 : 1,
     },
   }

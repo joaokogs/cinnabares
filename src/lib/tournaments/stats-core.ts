@@ -360,3 +360,56 @@ export function computePlayerTopPokemon(
   list.sort((a, b) => b.uses - a.uses || b.tournaments - a.tournaments || a.name.localeCompare(b.name))
   return opts.limit ? list.slice(0, opts.limit) : list
 }
+
+export function computePlayerTopPokemonWithItems(
+  sources: PlayerRosterSource[] | null | undefined,
+  playerId: string,
+  opts: { limit?: number; itemsLimit?: number } = {},
+): PokemonItemUsage[] {
+  const key = normalizeKey(playerId)
+  if (!key) return []
+
+  const byKey = new Map<string, { name: string; count: number; itemsByKey: Map<string, { name: string; count: number }> }>()
+
+  for (const source of sources ?? []) {
+    if (!source?.tournamentId || !Array.isArray(source.roster)) continue
+
+    for (const entry of source.roster) {
+      if (normalizeKey(entry?.playerId) !== key || !Array.isArray(entry.team)) continue
+
+      for (const mon of entry.team) {
+        const name = pokemonName(mon)
+        if (!name) continue
+
+        const monKey = normalizeKey(name)
+        const aggregate = byKey.get(monKey) ?? {
+          name,
+          count: 0,
+          itemsByKey: new Map<string, { name: string; count: number }>(),
+        }
+        aggregate.count += 1
+
+        const item = typeof mon.item === "string" ? mon.item.trim() : ""
+        if (item) {
+          const itemKey = normalizeKey(item)
+          const itemAggregate = aggregate.itemsByKey.get(itemKey) ?? { name: item, count: 0 }
+          itemAggregate.count += 1
+          aggregate.itemsByKey.set(itemKey, itemAggregate)
+        }
+
+        byKey.set(monKey, aggregate)
+      }
+    }
+  }
+
+  const list = [...byKey.values()].map((aggregate) => ({
+    name: aggregate.name,
+    uses: aggregate.count,
+    items: [...aggregate.itemsByKey.values()]
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, opts.itemsLimit ?? 3),
+  }))
+
+  list.sort((a, b) => b.uses - a.uses || a.name.localeCompare(b.name))
+  return opts.limit ? list.slice(0, opts.limit) : list
+}

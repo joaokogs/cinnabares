@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   Flame,
@@ -10,7 +9,6 @@ import {
   Shield,
   User,
   X,
-  Search,
   Swords,
 } from "lucide-react"
 import NextImage from "next/image"
@@ -25,14 +23,12 @@ type GuildInfo = {
   name: string
   tag: string
   memberCount: number
-  isFounder: boolean
 }
 
 type UserInfo = {
   name: string
   username: string | null
   image: string | null
-  role: string
 }
 
 type AppSidebarProps = {
@@ -77,14 +73,11 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
 
   const navItems = [
     { href: "/perfil", label: "Perfil", icon: User },
-    { href: guild ? `/guildas/${guild.tag}` : "/guildas", label: "Minha guilda", icon: Shield, disabled: !guild },
-    { href: "/guildas", label: "Explorar guildas", icon: Search },
+    { href: "/guildas", label: "Guildas", icon: Shield },
     { href: "/torneios", label: "Torneios", icon: Swords },
-    { href: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
-    ...(user.role === "admin" ? [{ href: "/torneios/novo", label: "Criar torneio", icon: Swords }] : []),
   ]
   const activeNavItem = navItems
-    .filter((item) => pathname === item.href || (item.href !== "/guildas" && pathname.startsWith(item.href + "/")))
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((first, second) => second.href.length - first.href.length)[0]
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-60"
@@ -100,35 +93,21 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
           const Icon = item.icon
           return (
             <li key={item.href}>
-              {item.disabled ? (
-                <span
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium opacity-40 cursor-not-allowed",
-                    collapsed && "justify-center px-0"
-                  )}
-                  title={item.label}
-                  aria-disabled="true"
-                >
-                  <Icon className="size-5 shrink-0" aria-hidden="true" />
-                  {!collapsed && <span>{item.label}</span>}
-                </span>
-              ) : (
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    collapsed && "justify-center px-0",
-                    isActive
-                      ? "bg-accent/15 text-accent"
-                      : "text-muted-foreground hover:bg-accent/5 hover:text-foreground"
-                  )}
-                  aria-current={isActive ? "page" : undefined}
-                  title={item.label}
-                >
-                  <Icon className="size-5 shrink-0" aria-hidden="true" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              )}
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  collapsed && "justify-center px-0",
+                  isActive
+                    ? "bg-accent/15 text-accent"
+                    : "text-muted-foreground hover:bg-accent/5 hover:text-foreground"
+                )}
+                aria-current={isActive ? "page" : undefined}
+                title={item.label}
+              >
+                <Icon className="size-5 shrink-0" aria-hidden="true" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
             </li>
           )
         })}

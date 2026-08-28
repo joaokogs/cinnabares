@@ -52,7 +52,6 @@ export function StatsFiltersForm({ current }: { current: Current }) {
           className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         >
           <option value="">Todos os formatos</option>
-          <option value="individual">Individual</option>
           <option value="guild">Guilda</option>
         </select>
       </label>

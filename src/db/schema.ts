@@ -1,4 +1,4 @@
-import { boolean, foreignKey, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core"
+import { boolean, date, foreignKey, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core"
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -167,6 +167,10 @@ export const tournament = pgTable("tournament", {
   slots: integer("slots").notNull(),
   visibility: tournamentVisibility("visibility").notNull().default("blind"),
   status: tournamentStatus("status").notNull().default("draft"),
+  scheduledDate: date("scheduled_date", { mode: "string" }).notNull(),
+  scheduledTime: text("scheduled_time").notNull(),
+  location: text("location").notNull(),
+  reward: text("reward").notNull().default(""),
   teamSize: integer("team_size").notNull().default(1),
   createdBy: text("created_by")
     .notNull()

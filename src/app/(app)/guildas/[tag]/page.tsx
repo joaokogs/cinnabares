@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Crown, Settings, Shield, Users } from "lucide-react"
+import { ArrowLeft, BarChart3, Crown, Settings, Shield, Users } from "lucide-react"
 import { notFound } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
@@ -59,7 +59,10 @@ export default async function GuildPage({ params }: GuildPageProps) {
                     <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">{currentGuild.name}</h1>
                   </div>
                 </div>
-                {isFounder ? <Button asChild variant="outline"><Link href={`/guildas/${currentGuild.tag}/admin`}><Settings aria-hidden="true" /> Administrar</Link></Button> : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline"><Link href={`/estatisticas?format=guild`}><BarChart3 aria-hidden="true" /> Estatísticas</Link></Button>
+                  {isFounder ? <Button asChild variant="outline"><Link href={`/guildas/${currentGuild.tag}/admin`}><Settings aria-hidden="true" /> Administrar</Link></Button> : null}
+                </div>
               </div>
               <p className="mt-6 max-w-3xl leading-7 text-muted-foreground">{currentGuild.description || "Esta guilda ainda não adicionou uma descrição."}</p>
             </div>
@@ -74,23 +77,43 @@ export default async function GuildPage({ params }: GuildPageProps) {
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 p-3">
-                  <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/15 font-heading font-semibold text-accent">
-                    {member.image ? (
-                      <GuildImage
-                        src={`/api/guilds/${currentGuild.id}/members/${member.id}/avatar`}
-                        alt={`Avatar de ${member.username ?? member.name}`}
-                        width={40}
-                        height={40}
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      (member.username ?? member.name).slice(0, 1).toUpperCase()
-                    )}
+                member.username ? (
+                  <Link key={member.id} href={`/players/${member.username}`} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 p-3 transition-colors hover:border-accent/40 hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/15 font-heading font-semibold text-accent">
+                      {member.image ? (
+                        <GuildImage
+                          src={`/api/guilds/${currentGuild.id}/members/${member.id}/avatar`}
+                          alt={`Avatar de ${member.username ?? member.name}`}
+                          width={40}
+                          height={40}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        (member.username ?? member.name).slice(0, 1).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0"><p className="truncate font-medium">{member.name}</p><p className="truncate text-xs text-muted-foreground">@{member.username}</p></div>
+                    {member.id === currentGuild.founderId ? <Crown className="ml-auto size-4 shrink-0 text-accent" aria-label="Founder" /> : null}
+                  </Link>
+                ) : (
+                  <div key={member.id} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/40 p-3">
+                    <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/15 font-heading font-semibold text-accent">
+                      {member.image ? (
+                        <GuildImage
+                          src={`/api/guilds/${currentGuild.id}/members/${member.id}/avatar`}
+                          alt={`Avatar de ${member.username ?? member.name}`}
+                          width={40}
+                          height={40}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        member.name.slice(0, 1).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0"><p className="truncate font-medium">{member.name}</p><p className="truncate text-xs text-muted-foreground">@player</p></div>
+                    {member.id === currentGuild.founderId ? <Crown className="ml-auto size-4 shrink-0 text-accent" aria-label="Founder" /> : null}
                   </div>
-                  <div className="min-w-0"><p className="truncate font-medium">{member.name}</p><p className="truncate text-xs text-muted-foreground">@{member.username ?? "player"}</p></div>
-                  {member.id === currentGuild.founderId ? <Crown className="ml-auto size-4 shrink-0 text-accent" aria-label="Founder" /> : null}
-                </div>
+                )
               ))}
             </CardContent>
           </Card>

@@ -46,7 +46,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   if (params.tier && (TIERS as readonly string[]).includes(params.tier)) {
     filters.tier = params.tier as Tier
   }
-  if (params.format === "individual" || params.format === "guild") {
+  if (params.format === "guild") {
     filters.format = params.format
   }
   if (params.period && params.period !== "all") {

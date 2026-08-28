@@ -64,6 +64,13 @@
       "when": 1787586400000,
       "tag": "0008_add_bracket_action_log",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787860414265,
+      "tag": "0009_redundant_hex",
+      "breakpoints": true
     }
   ]
 }
