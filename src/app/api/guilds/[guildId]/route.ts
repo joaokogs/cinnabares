@@ -56,3 +56,32 @@ export async function PATCH(
 
   return Response.json({ tag })
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ guildId: string }> }
+) {
+  const session = await auth.api.getSession({ headers: request.headers })
+  if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
+
+  const { guildId } = await params
+  const [currentGuild] = await db
+    .select({ founderId: guild.founderId })
+    .from(guild)
+    .where(eq(guild.id, guildId))
+    .limit(1)
+
+  if (!currentGuild) return Response.json({ error: "Esta guilda não existe mais." }, { status: 404 })
+  if (currentGuild.founderId !== session.user.id) {
+    return Response.json({ error: "Apenas o fundador pode excluir a guilda." }, { status: 403 })
+  }
+
+  const body = await request.json().catch(() => null) as { confirmation?: unknown } | null
+  if (body?.confirmation !== "Confirmar") {
+    return Response.json({ error: "Digite Confirmar para excluir a guilda." }, { status: 400 })
+  }
+
+  await db.delete(guild).where(eq(guild.id, guildId))
+
+  return Response.json({ ok: true })
+}

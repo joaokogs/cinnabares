@@ -1,4 +1,4 @@
-import { asc, eq, ilike, or, sql } from "drizzle-orm"
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import { guild, guildMember, guildRole, user } from "@/db/schema"
@@ -68,6 +68,15 @@ export async function getGuildMembers(guildId: string) {
     .innerJoin(user, eq(user.id, guildMember.userId))
     .where(eq(guildMember.guildId, guildId))
     .orderBy(asc(guildMember.joinedAt))
+}
+
+export async function isGuildMember(guildId: string, userId: string) {
+  const [row] = await db
+    .select({ guildId: guildMember.guildId })
+    .from(guildMember)
+    .where(and(eq(guildMember.guildId, guildId), eq(guildMember.userId, userId)))
+    .limit(1)
+  return Boolean(row)
 }
 
 export async function getGuildRoles(guildId: string) {

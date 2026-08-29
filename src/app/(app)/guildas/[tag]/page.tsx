@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { GuildImage } from "@/components/shared/guild-image"
-import { getGuildByTag, getGuildMembers, getGuildRoles } from "@/lib/guilds/queries"
+import { getGuildByTag, getGuildMembers, getGuildRoles, isGuildMember } from "@/lib/guilds/queries"
 import { GuildTournamentStats } from "./_components/tournament-stats"
+import { GuildMembershipActions } from "./_components/guild-membership-actions"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 
@@ -35,6 +36,7 @@ export default async function GuildPage({ params }: GuildPageProps) {
   const imageUrl = currentGuild.image ? `/api/guilds/${currentGuild.id}/image?path=${encodeURIComponent(currentGuild.image)}` : null
   const bannerUrl = currentGuild.banner ? `/api/guilds/${currentGuild.id}/banner?path=${encodeURIComponent(currentGuild.banner)}` : null
   const isFounder = session?.user.id === currentGuild.founderId
+  const isMember = session ? await isGuildMember(currentGuild.id, session.user.id) : false
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-12 sm:px-6 lg:py-16">
@@ -62,6 +64,7 @@ export default async function GuildPage({ params }: GuildPageProps) {
                 <div className="flex flex-wrap gap-2">
                   <Button asChild variant="outline"><Link href={`/estatisticas?format=guild`}><BarChart3 aria-hidden="true" /> Estatísticas</Link></Button>
                   {isFounder ? <Button asChild variant="outline"><Link href={`/guildas/${currentGuild.tag}/admin`}><Settings aria-hidden="true" /> Administrar</Link></Button> : null}
+                  <GuildMembershipActions guildId={currentGuild.id} isFounder={isFounder} isMember={isMember} />
                 </div>
               </div>
               <p className="mt-6 max-w-3xl leading-7 text-muted-foreground">{currentGuild.description || "Esta guilda ainda não adicionou uma descrição."}</p>
