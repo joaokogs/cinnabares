@@ -8,6 +8,7 @@ import {
   Menu,
   Shield,
   User,
+  Users,
   X,
   Swords,
 } from "lucide-react"
@@ -20,9 +21,11 @@ import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 
 type GuildInfo = {
+  id: string
   name: string
   tag: string
   memberCount: number
+  image: string | null
 }
 
 type UserInfo = {
@@ -73,6 +76,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
 
   const navItems = [
     { href: "/perfil", label: "Perfil", icon: User },
+    { href: "/players", label: "Players", icon: Users },
     { href: "/guildas", label: "Guildas", icon: Shield },
     { href: "/torneios", label: "Torneios", icon: Swords },
   ]
@@ -117,7 +121,20 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
         {guild && !collapsed && (
           <div className="mb-3 rounded-lg bg-accent/5 border border-accent/10 px-3 py-2">
             <div className="flex items-center gap-2">
-              <Shield className="size-4 text-accent" aria-hidden="true" />
+              <div className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-md bg-accent/15 text-accent">
+                {guild.image ? (
+                  <NextImage
+                    src={`/api/guilds/${guild.id}/image?path=${encodeURIComponent(guild.image)}`}
+                    alt=""
+                    width={20}
+                    height={20}
+                    unoptimized
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  guild.name.slice(0, 1).toUpperCase()
+                )}
+              </div>
               <span className="truncate text-xs font-medium text-accent">{guild.name}</span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">{guild.memberCount} membros</p>

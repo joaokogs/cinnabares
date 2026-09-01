@@ -28,11 +28,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           username: user.username ?? null,
           image: user.image ?? null,
         }}
-        guild={guildRow ? {
-          name: guildRow.guildName,
-          tag: guildRow.guildTag,
-          memberCount,
-        } : null}
+         guild={guildRow ? {
+           id: guildRow.guildId,
+           name: guildRow.guildName,
+           tag: guildRow.guildTag,
+           memberCount,
+           image: guildRow.guildImage,
+         } : null}
       />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {children}
