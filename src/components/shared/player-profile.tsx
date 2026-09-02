@@ -1,6 +1,6 @@
 import NextImage from "next/image"
 import Link from "next/link"
-import { Pencil, Shield } from "lucide-react"
+import { Pencil, Shield, Trophy } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { GuildImage } from "@/components/shared/guild-image"
 import { PlayerTopPokemon } from "@/app/(app)/perfil/_components/player-top-pokemon"
 import { PlayerTournamentStats } from "@/app/(app)/perfil/_components/tournament-stats"
 import type { getUserGuild } from "@/lib/guilds/queries"
+import { computePoints } from "@/lib/tournaments/points"
 import { getPlayerStats } from "@/lib/tournaments/stats"
 
 type PlayerProfileProps = {
@@ -32,6 +33,7 @@ export function PlayerProfile({ player, guild, avatarUrl, isSelf, headerAction }
 
 async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, headerAction, statsPromise }: PlayerProfileProps & { statsPromise: ReturnType<typeof getPlayerStats> }) {
   const { history, favorite } = await statsPromise
+  const points = computePoints(history.filter((item) => item.format === "individual"))
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-10 sm:px-6 lg:py-16">
@@ -53,6 +55,9 @@ async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, headerAc
                     <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">{isSelf ? "Seu perfil" : "Perfil público"}</p>
                     <h1 id="player-profile-title" className="mt-1 truncate font-heading text-3xl font-bold tracking-tight">{player.name}</h1>
                     <p className="mt-1 truncate text-sm text-muted-foreground">@{player.username ?? "player"}</p>
+                    <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
+                      <Trophy className="size-4" aria-hidden="true" /> {points.total} pts
+                    </p>
                   </div>
                 </div>
                 {isSelf ? (

@@ -1,23 +1,9 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { PERIODS, TIERS, TIER_LABELS, type Tier } from "@/lib/tournaments/tiers"
 
-export const TIERS = ["overused", "underused", "neverused", "doubles", "random"] as const
-export type Tier = (typeof TIERS)[number]
-
-export const TIER_LABELS: Record<Tier, string> = {
-  overused: "OverUsed",
-  underused: "UnderUsed",
-  neverused: "NeverUsed",
-  doubles: "Doubles",
-  random: "Random",
-}
-
-export const PERIODS = [
-  { value: "all", label: "Todo o período" },
-  { value: "30", label: "Últimos 30 dias" },
-  { value: "90", label: "Últimos 90 dias" },
-  { value: "365", label: "Último ano" },
-] as const
+export { PERIODS, TIERS, TIER_LABELS }
+export type { PeriodValue, Tier } from "@/lib/tournaments/tiers"
 
 type Current = { tier?: string; format?: string; period?: string }
 

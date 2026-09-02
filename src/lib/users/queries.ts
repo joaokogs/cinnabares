@@ -57,9 +57,9 @@ export async function searchPlayers({
   if (trimmed) {
     conditions.push(
       or(
-        ilike(user.name, sql`%${escapeLike(trimmed)}%`),
-        ilike(user.username, sql`%${escapeLike(trimmed)}%`),
-        ilike(user.displayUsername, sql`%${escapeLike(trimmed)}%`)
+        ilike(user.name, `%${escapeLike(trimmed)}%`),
+        ilike(user.username, `%${escapeLike(trimmed)}%`),
+        ilike(user.displayUsername, `%${escapeLike(trimmed)}%`)
       )!
     )
   }

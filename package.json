@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "verify:stats": "tsx scripts/verify-tournament-stats.ts",
+    "verify:points": "tsx scripts/verify-points.ts",
     "studio": "sanity dev",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"

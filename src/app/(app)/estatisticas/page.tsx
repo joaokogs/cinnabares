@@ -3,11 +3,13 @@ import { BarChart3, CalendarDays, Crown, Trophy } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { POINTS_RULE_LABEL } from "@/lib/tournaments/points"
 import { computeChampionPokemonItemUsage, titleCase } from "@/lib/tournaments/stats-core"
-import { getFinishedChampionTournaments, type StatsFilters } from "@/lib/tournaments/stats"
+import { getFinishedChampionTournaments, getGuildPointsRanking, getPlayerPointsRanking, type StatsFilters } from "@/lib/tournaments/stats"
 import { ItemSprite } from "./_components/item-sprite"
 import { PokemonSprite } from "./_components/pokemon-sprite"
 import { PERIODS, StatsFiltersForm, TIERS, TIER_LABELS, type Tier } from "./_components/stats-filters"
+import { PointsRankingCard } from "./_components/points-ranking"
 
 export const metadata: Metadata = {
   title: "Estatísticas de torneios",
@@ -62,6 +64,10 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const tournaments = await getFinishedChampionTournaments(filters)
   const topPokemon = computeChampionPokemonItemUsage(tournaments, { limit: 6, itemsLimit: 3 })
 
+  const showGuildRanking = filters.format === "guild"
+  const playerRanking = showGuildRanking ? null : await getPlayerPointsRanking(filters)
+  const guildRanking = showGuildRanking ? await getGuildPointsRanking(filters) : null
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" aria-hidden="true" />
@@ -72,12 +78,29 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
             <BarChart3 className="size-7 text-accent" aria-hidden="true" /> Estatísticas de torneios
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Rankings derivados dos campeões das finais completadas dos torneios finalizados. Use os filtros para
-            refinar por tier, formato e período.
+            Ranking de pontos por colocação, Pokémon mais usados em times campeões e torneios finalizados. Use os
+            filtros para refinar por tier, formato e período.
           </p>
         </div>
 
         <StatsFiltersForm current={{ tier: params.tier, format: params.format, period: params.period }} />
+
+        {playerRanking ? (
+          <PointsRankingCard
+            title="Ranking de pontos — Players"
+            description={`Pontos de colocação nos torneios individuais finalizados (${POINTS_RULE_LABEL}).`}
+            items={playerRanking.map((entry) => ({ id: entry.playerId, name: entry.name, total: entry.total, tournaments: entry.tournaments }))}
+            empty="Nenhum player pontuou com os filtros atuais."
+          />
+        ) : null}
+        {guildRanking ? (
+          <PointsRankingCard
+            title="Ranking de pontos — Guildas"
+            description={`Pontos de colocação nos torneios de guilda finalizados (${POINTS_RULE_LABEL}). A guilda recebe o valor total por inscrição.`}
+            items={guildRanking.map((entry) => ({ id: entry.guildId, name: entry.name, tag: entry.tag, total: entry.total, tournaments: entry.tournaments }))}
+            empty="Nenhuma guilda pontuou com os filtros atuais."
+          />
+        ) : null}
 
         <Card className="border-border/70 bg-card/90">
           <CardHeader>

@@ -3,6 +3,7 @@ import { ArrowUpRight, Trophy } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { pointsForResult } from "@/lib/tournaments/points"
 import type { PlayerTournamentResult } from "@/lib/tournaments/stats"
 
 const TIER_LABELS: Record<string, string> = {
@@ -73,7 +74,12 @@ export function PlayerTournamentStats({ history }: { history: PlayerTournamentRe
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
                         <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Colocação</span>
-                        <ResultBadge item={item} />
+                        <div className="flex flex-wrap items-center gap-2">
+                          {pointsForResult(item) > 0 ? (
+                            <Badge variant="outline" className="text-accent">+{pointsForResult(item)} pts</Badge>
+                          ) : null}
+                          <ResultBadge item={item} />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

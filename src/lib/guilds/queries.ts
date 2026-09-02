@@ -3,6 +3,11 @@ import { and, asc, eq, ilike, or, sql } from "drizzle-orm"
 import { db } from "@/db"
 import { guild, guildMember, guildRole, user } from "@/db/schema"
 
+const escapeLike = (value: string) => {
+  const bs = String.fromCharCode(92)
+  return value.split(bs).join(bs + bs).split("%").join(bs + "%").split("_").join(bs + "_")
+}
+
 export async function getGuildByTag(tag: string) {
   const [result] = await db.select().from(guild).where(eq(guild.tag, tag)).limit(1)
   return result ?? null
@@ -19,10 +24,10 @@ export async function searchGuilds(query: string) {
   return db
     .select({ id: guild.id, name: guild.name, tag: guild.tag, description: guild.description, image: guild.image })
     .from(guild)
-    .where(
+      .where(
       or(
-        ilike(guild.name, sql`%${trimmed}%`),
-        ilike(guild.tag, sql`%${trimmed}%`)
+        ilike(guild.name, `%${escapeLike(trimmed)}%`),
+        ilike(guild.tag, `%${escapeLike(trimmed)}%`)
       )
     )
 }

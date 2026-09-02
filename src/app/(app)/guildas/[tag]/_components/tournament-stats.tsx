@@ -2,6 +2,7 @@ import { Swords, Trophy, Users } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { computePoints, pointsForResult } from "@/lib/tournaments/points"
 import { getGuildStats } from "@/lib/tournaments/stats"
 
 const TIER_LABELS: Record<string, string> = {
@@ -21,6 +22,7 @@ function formatDate(value: Date | string | null): string {
 
 export async function GuildTournamentStats({ guildId }: { guildId: string }) {
   const { history, members } = await getGuildStats(guildId)
+  const points = computePoints(history)
 
   return (
     <div className="space-y-6">
@@ -29,7 +31,11 @@ export async function GuildTournamentStats({ guildId }: { guildId: string }) {
           <CardTitle className="flex items-center gap-2">
             <Trophy className="size-5 text-accent" aria-hidden="true" /> Histórico de torneios
           </CardTitle>
-          <CardDescription>Torneios disputados pela guilda e seus resultados.</CardDescription>
+          <CardDescription>
+            {points.total > 0
+              ? `${points.total} pts em torneios de guilda finalizados.`
+              : "Torneios disputados pela guilda e seus resultados."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {history.length === 0 ? (
@@ -47,23 +53,28 @@ export async function GuildTournamentStats({ guildId }: { guildId: string }) {
                         : ""}
                     </p>
                   </div>
-                  {item.result === "champion" ? (
-                    <Badge className="bg-accent/15 text-accent">
-                      <Trophy className="mr-1 size-3" aria-hidden="true" /> Campeã · {item.placementLabel}
-                    </Badge>
-                  ) : item.result === "pending" ? (
-                    <Badge variant="outline">Inscrição pendente</Badge>
-                  ) : item.result === "rejected" ? (
-                    <Badge variant="destructive">Inscrição recusada</Badge>
-                  ) : item.result === "eliminated" ? (
-                    <Badge variant="secondary" aria-label={`Colocação ${item.placementLabel}`}>
-                      {item.placementLabel}
-                    </Badge>
-                  ) : item.result === "in_progress" ? (
-                    <Badge variant="secondary">Em andamento</Badge>
-                  ) : (
-                    <Badge variant="secondary">Participou</Badge>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {pointsForResult(item) > 0 ? (
+                      <Badge variant="outline" className="text-accent">+{pointsForResult(item)} pts</Badge>
+                    ) : null}
+                    {item.result === "champion" ? (
+                      <Badge className="bg-accent/15 text-accent">
+                        <Trophy className="mr-1 size-3" aria-hidden="true" /> Campeã · {item.placementLabel}
+                      </Badge>
+                    ) : item.result === "pending" ? (
+                      <Badge variant="outline">Inscrição pendente</Badge>
+                    ) : item.result === "rejected" ? (
+                      <Badge variant="destructive">Inscrição recusada</Badge>
+                    ) : item.result === "eliminated" ? (
+                      <Badge variant="secondary" aria-label={`Colocação ${item.placementLabel}`}>
+                        {item.placementLabel}
+                      </Badge>
+                    ) : item.result === "in_progress" ? (
+                      <Badge variant="secondary">Em andamento</Badge>
+                    ) : (
+                      <Badge variant="secondary">Participou</Badge>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

@@ -24,6 +24,7 @@ export function TournamentControls({ tournamentId, status }: { tournamentId: str
   const [startingBracket, setStartingBracket] = useState(false)
 
   useEffect(() => {
+    if (status === "finished") return
     let cancelled = false
 
     async function run() {
@@ -33,7 +34,7 @@ export function TournamentControls({ tournamentId, status }: { tournamentId: str
 
     void run()
     return () => { cancelled = true }
-  }, [tournamentId])
+  }, [tournamentId, status])
 
   async function review(id: string, reviewStatus: "approved" | "rejected") {
     setError(null)
@@ -134,11 +135,13 @@ export function TournamentControls({ tournamentId, status }: { tournamentId: str
 
         {(status === "active" || status === "finished") ? (
           <p className="text-sm text-muted-foreground">
-            O torneio está em andamento. Acesse a{" "}
+            {status === "finished"
+              ? "O torneio foi finalizado. Acesse a "
+              : "O torneio está em andamento. Acesse a "}
             <Link href={`/torneios/${tournamentId}/bracket`} className="text-primary underline underline-offset-2 hover:text-primary/80">
               chave do torneio
             </Link>
-            {" "}para gerenciar as partidas.
+            {" "}para ver as partidas.
           </p>
         ) : null}
       </CardContent>

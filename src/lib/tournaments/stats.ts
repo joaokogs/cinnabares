@@ -24,6 +24,7 @@ import {
   computeTopWinningPokemon,
   derivePlacement,
 } from "./stats-core"
+import { computePoints, pointsForRank, sortPointsRanking, type PointsSummary } from "./points"
 
 export type StatsFilters = {
   tier?: TournamentTier
@@ -75,6 +76,22 @@ export type PlayerStats = {
 export type GuildStats = {
   history: GuildTournamentResult[]
   members: MemberFavorite[]
+}
+
+export type PlayerPointsRankingEntry = {
+  playerId: string
+  name: string
+  username: string | null
+  total: number
+  tournaments: number
+}
+
+export type GuildPointsRankingEntry = {
+  guildId: string
+  name: string
+  tag: string | null
+  total: number
+  tournaments: number
 }
 
 function finalMatchJoin(bracketAlias: typeof bracket) {
@@ -408,6 +425,100 @@ async function getGuildMembersLite(guildId: string) {
     .from(gMember)
     .innerJoin(user, eq(user.id, gMember.userId))
     .where(eq(gMember.guildId, guildId))
+}
+
+export async function getPlayerPointsTotal(userId: string): Promise<PointsSummary> {
+  const stats = await getPlayerStats(userId)
+  return computePoints(stats.history.filter((item) => item.format === "individual"))
+}
+
+export async function getGuildPointsTotal(guildId: string): Promise<PointsSummary> {
+  const stats = await getGuildStats(guildId)
+  return computePoints(stats.history)
+}
+
+export async function getPlayerPointsRanking(filters: StatsFilters = {}): Promise<PlayerPointsRankingEntry[]> {
+  const where = [
+    eq(tournament.status, "finished"),
+    eq(tournament.format, "individual"),
+    eq(tournamentRegistration.status, "approved"),
+  ]
+  if (filters.tier) where.push(sql`${tournament.tiers} ? ${filters.tier}`)
+  if (filters.from) where.push(gte(tournament.createdAt, filters.from))
+  if (filters.to) where.push(lte(tournament.createdAt, filters.to))
+
+  const rows = await db
+    .select({
+      registrationId: tournamentRegistration.id,
+      bracketId: bracket.id,
+      playerId: user.id,
+      name: user.name,
+      username: user.username,
+    })
+    .from(tournamentRegistration)
+    .innerJoin(tournament, eq(tournament.id, tournamentRegistration.tournamentId))
+    .innerJoin(user, eq(user.id, tournamentRegistration.userId))
+    .leftJoin(bracket, eq(bracket.tournamentId, tournament.id))
+    .where(and(...where))
+
+  const bracketIds = [...new Set(rows.map((row) => row.bracketId).filter((id): id is string => !!id))]
+  const matchesByBracket = await getBracketMatchesForBrackets(bracketIds)
+
+  const byPlayer = new Map<string, PlayerPointsRankingEntry>()
+  for (const row of rows) {
+    const matches = row.bracketId ? (matchesByBracket.get(row.bracketId) ?? []) : []
+    const placement = derivePlacement(matches, row.registrationId)
+    const points = pointsForRank(placement.rank)
+    if (points <= 0) continue
+    const entry = byPlayer.get(row.playerId) ?? { playerId: row.playerId, name: row.name, username: row.username, total: 0, tournaments: 0 }
+    entry.total += points
+    entry.tournaments += 1
+    byPlayer.set(row.playerId, entry)
+  }
+
+  return sortPointsRanking([...byPlayer.values()])
+}
+
+export async function getGuildPointsRanking(filters: StatsFilters = {}): Promise<GuildPointsRankingEntry[]> {
+  const where = [
+    eq(tournament.status, "finished"),
+    eq(tournament.format, "guild"),
+    eq(tournamentRegistration.status, "approved"),
+  ]
+  if (filters.tier) where.push(sql`${tournament.tiers} ? ${filters.tier}`)
+  if (filters.from) where.push(gte(tournament.createdAt, filters.from))
+  if (filters.to) where.push(lte(tournament.createdAt, filters.to))
+
+  const rows = await db
+    .select({
+      registrationId: tournamentRegistration.id,
+      bracketId: bracket.id,
+      guildId: guild.id,
+      name: guild.name,
+      tag: guild.tag,
+    })
+    .from(tournamentRegistration)
+    .innerJoin(tournament, eq(tournament.id, tournamentRegistration.tournamentId))
+    .innerJoin(guild, eq(guild.id, tournamentRegistration.guildId))
+    .leftJoin(bracket, eq(bracket.tournamentId, tournament.id))
+    .where(and(...where))
+
+  const bracketIds = [...new Set(rows.map((row) => row.bracketId).filter((id): id is string => !!id))]
+  const matchesByBracket = await getBracketMatchesForBrackets(bracketIds)
+
+  const byGuild = new Map<string, GuildPointsRankingEntry>()
+  for (const row of rows) {
+    const matches = row.bracketId ? (matchesByBracket.get(row.bracketId) ?? []) : []
+    const placement = derivePlacement(matches, row.registrationId)
+    const points = pointsForRank(placement.rank)
+    if (points <= 0) continue
+    const entry = byGuild.get(row.guildId) ?? { guildId: row.guildId, name: row.name, tag: row.tag, total: 0, tournaments: 0 }
+    entry.total += points
+    entry.tournaments += 1
+    byGuild.set(row.guildId, entry)
+  }
+
+  return sortPointsRanking([...byGuild.values()])
 }
 
 export {

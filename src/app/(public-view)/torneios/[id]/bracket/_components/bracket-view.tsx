@@ -85,6 +85,7 @@ function MatchCard({
   match,
   adminMode,
   visibility,
+  finished,
   onResolve,
   onRevert,
   resolving,
@@ -93,6 +94,7 @@ function MatchCard({
   match: Match
   adminMode?: boolean
   visibility: Visibility
+  finished?: boolean
   onResolve?: (matchId: string, winnerRegistrationId: string) => void
   onRevert?: (matchId: string) => void
   resolving?: boolean
@@ -103,6 +105,7 @@ function MatchCard({
   const slot2IsWinner = match.winnerRegistrationId === match.slot2RegistrationId
   const slot2IsBye = !match.slot2RegistrationId
   const busy = resolving || reverting
+  const showAdminActions = adminMode && !finished
 
   return (
     <div className="w-56 shrink-0 rounded-lg border border-border bg-background/60 p-0 text-sm">
@@ -120,7 +123,7 @@ function MatchCard({
           isWinner={slot1IsWinner}
           isComplete={isComplete}
         />
-        {adminMode && isComplete ? (
+        {showAdminActions && isComplete ? (
           <button
             type="button"
             disabled={busy || reverting}
@@ -155,7 +158,7 @@ function MatchCard({
         ) : null}
       </div>
 
-      {adminMode && !isComplete && match.slot1RegistrationId && match.slot2RegistrationId ? (
+      {showAdminActions && !isComplete && match.slot1RegistrationId && match.slot2RegistrationId ? (
         <div className="flex border-t border-border/50">
           <button
             type="button"
@@ -191,6 +194,7 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  const finished = data?.tournament.status === "finished"
   const internalResolve = adminMode && !onResolve
   const internalRevert = adminMode && !onRevert
 
@@ -371,6 +375,13 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
         </Card>
       ) : null}
 
+      {finished ? (
+        <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-sm text-muted-foreground">
+          <Trophy className="size-4 text-accent" aria-hidden="true" />
+          <span>Este torneio foi <strong className="font-semibold text-foreground">finalizado</strong>. A chave reflete o resultado final e não recebe novas atualizações.</span>
+        </div>
+      ) : null}
+
       {adminMode ? (
         <div className="flex items-center gap-2">
           <BracketHistorySidebar tournamentId={tournamentId} totalPhases={data.totalPhases} />
@@ -392,6 +403,7 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
                     match={match}
                     adminMode={adminMode}
                     visibility={data.tournament.visibility}
+                    finished={finished}
                     onResolve={resolveHandler}
                     onRevert={revertHandler}
                     resolving={activeResolving === match.id}
