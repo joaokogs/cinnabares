@@ -1,49 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Trophy, Swords, Undo2 } from "lucide-react"
+import { useState } from "react"
+import { Swords, Trophy } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { readApiError } from "@/lib/error-messages"
-import { cn } from "@/lib/utils"
 import { getPhaseLabel } from "@/lib/tournaments/bracket"
-import type { VisibleRosterEntry } from "@/lib/tournaments/roster"
 import { BracketHistorySidebar } from "./bracket-history-sidebar"
-import { ParticipantSidebar } from "./participant-popover"
-
-type Visibility = "blind" | "partial" | "total"
-
-type Match = {
-  id: string
-  phase: number
-  position: number
-  slot1RegistrationId: string | null
-  slot2RegistrationId: string | null
-  winnerRegistrationId: string | null
-  status: "pending" | "completed"
-  slot1Name: string
-  slot1GuildTag: string | null
-  slot1Roster: VisibleRosterEntry[]
-  slot2Name: string
-  slot2GuildTag: string | null
-  slot2Roster: VisibleRosterEntry[]
-  winnerName: string | null
-}
-
-type BracketData = {
-  tournament: { name: string; status: string; visibility: Visibility }
-  totalPhases: number
-  matches: Match[]
-  champion: { registrationId: string | null; name: string | null } | null
-}
-
-type ConfirmAction = {
-  type: "resolve" | "revert"
-  matchId: string
-  label: string
-  winnerRegistrationId?: string
-}
+import { ConfirmPanel } from "./confirm-panel"
+import { MatchCard } from "./match-card"
+import { MatchupDialog } from "./matchup-dialog"
+import type { ConfirmAction, Match, Visibility } from "./types"
+import { useBracketData } from "./use-bracket"
 
 type BracketViewProps = {
   tournamentId: string
@@ -54,233 +21,171 @@ type BracketViewProps = {
   revertingMatchId?: string | null
 }
 
-function SlotName({
-  name,
-  guildTag,
-  roster,
-  visibility,
-  isWinner,
-  isComplete,
-}: {
-  name: string
-  guildTag: string | null
-  roster: VisibleRosterEntry[]
-  visibility: Visibility
-  isWinner: boolean
-  isComplete: boolean
-}) {
-  const label = guildTag ? `${name} [${guildTag}]` : name
-
+function ChampionBanner({ champion }: { champion: { registrationId: string | null; name: string | null } }) {
   return (
-    <span className={cn("flex items-center gap-1.5 truncate", isWinner && "font-semibold text-primary")}>
-      <ParticipantSidebar name={label} roster={roster} visibility={visibility}>
-        <span className="truncate cursor-pointer underline-offset-2 hover:underline">{label}</span>
-      </ParticipantSidebar>
-      {isWinner && isComplete ? <Trophy className="size-3.5 shrink-0 text-primary" aria-label="Vencedor" /> : null}
-    </span>
+    <Card className="border-accent/40 bg-accent/5">
+      <CardContent className="flex items-center gap-4 py-4">
+        <div className="grid size-12 place-items-center rounded-full bg-accent/20 ring-2 ring-accent/40">
+          <Trophy className="size-6 text-accent" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Campeão</p>
+          <p className="font-heading text-lg font-bold">{champion.name}</p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
-function MatchCard({
-  match,
-  adminMode,
-  visibility,
-  finished,
-  onResolve,
-  onRevert,
-  resolving,
-  reverting,
-}: {
-  match: Match
-  adminMode?: boolean
-  visibility: Visibility
-  finished?: boolean
-  onResolve?: (matchId: string, winnerRegistrationId: string) => void
-  onRevert?: (matchId: string) => void
-  resolving?: boolean
-  reverting?: boolean
-}) {
-  const isComplete = match.status === "completed"
-  const slot1IsWinner = match.winnerRegistrationId === match.slot1RegistrationId
-  const slot2IsWinner = match.winnerRegistrationId === match.slot2RegistrationId
-  const slot2IsBye = !match.slot2RegistrationId
-  const busy = resolving || reverting
-  const showAdminActions = adminMode && !finished
-
+function FinishedNotice({ show }: { show: boolean }) {
+  if (!show) return null
   return (
-    <div className="w-56 shrink-0 rounded-lg border border-border bg-background/60 p-0 text-sm">
-      <div
-        className={cn(
-          "flex w-full items-center justify-between gap-2 border-b border-border/50 px-3 py-2",
-          slot1IsWinner && "bg-primary/10",
-        )}
-      >
-        <SlotName
-          name={match.slot1Name}
-          guildTag={match.slot1GuildTag}
-          roster={match.slot1Roster}
-          visibility={visibility}
-          isWinner={slot1IsWinner}
-          isComplete={isComplete}
-        />
-        {showAdminActions && isComplete ? (
-          <button
-            type="button"
-            disabled={busy || reverting}
-            onClick={() => onRevert?.(match.id)}
-            className={cn(
-              "shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive",
-              reverting && "animate-pulse opacity-60",
-            )}
-            aria-label={`Desfazer resultado de ${match.slot1Name}`}
-          >
-            <Undo2 className="size-3" />
-          </button>
-        ) : null}
-      </div>
-
-      <div
-        className={cn(
-          "flex w-full items-center justify-between gap-2 px-3 py-2",
-          slot2IsWinner && "bg-primary/10",
-        )}
-      >
-        <SlotName
-          name={match.slot2Name}
-          guildTag={match.slot2GuildTag}
-          roster={match.slot2Roster}
-          visibility={visibility}
-          isWinner={slot2IsWinner}
-          isComplete={isComplete}
-        />
-        {slot2IsBye ? (
-          <span className="text-xs text-muted-foreground">BYE</span>
-        ) : null}
-      </div>
-
-      {showAdminActions && !isComplete && match.slot1RegistrationId && match.slot2RegistrationId ? (
-        <div className="flex border-t border-border/50">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onResolve?.(match.id, match.slot1RegistrationId!)}
-            className={cn(
-              "flex-1 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10",
-              busy && "animate-pulse opacity-60",
-            )}
-          >
-            {match.slot1GuildTag ? `${match.slot1Name} [${match.slot1GuildTag}]` : match.slot1Name}
-          </button>
-          <div className="w-px bg-border/50" aria-hidden="true" />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onResolve?.(match.id, match.slot2RegistrationId!)}
-            className={cn(
-              "flex-1 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10",
-              busy && "animate-pulse opacity-60",
-            )}
-          >
-            {match.slot2GuildTag ? `${match.slot2Name} [${match.slot2GuildTag}]` : match.slot2Name}
-          </button>
-        </div>
-      ) : null}
+    <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-sm text-muted-foreground">
+      <Trophy className="size-4 text-accent" aria-hidden="true" />
+      <span>Este torneio foi <strong className="font-semibold text-foreground">finalizado</strong>. A chave reflete o resultado final e não recebe novas atualizações.</span>
     </div>
   )
 }
 
+function groupMatchesByPhase(matches: Match[]): Map<number, Match[]> {
+  const phases = new Map<number, Match[]>()
+  for (const match of matches) {
+    const list = phases.get(match.phase) ?? []
+    list.push(match)
+    phases.set(match.phase, list)
+  }
+  return phases
+}
+
+function findMatch(matches: Match[], matchId: string | null): Match | null {
+  if (!matchId) return null
+  return matches.find((m) => m.id === matchId) ?? null
+}
+
+function resolveActiveId(external: string | null | undefined, internal: boolean | undefined, internalId: string | null): string | null {
+  return external ?? (internal ? internalId : null)
+}
+
+function PhaseColumn({
+  phase,
+  matches,
+  totalPhases,
+  visibility,
+  adminMode,
+  finished,
+  onResolve,
+  onRevert,
+  activeResolving,
+  activeReverting,
+  onViewMatchup,
+}: {
+  phase: number
+  matches: Match[]
+  totalPhases: number
+  visibility: Visibility
+  adminMode?: boolean
+  finished?: boolean
+  onResolve?: (matchId: string, winnerRegistrationId: string) => void
+  onRevert?: (matchId: string) => void
+  activeResolving: string | null
+  activeReverting: string | null
+  onViewMatchup: (matchId: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <Swords className="size-4 text-accent" aria-hidden="true" />
+        <h3 className="font-heading text-sm font-semibold">{getPhaseLabel(phase, totalPhases)}</h3>
+      </div>
+      <div className="flex flex-col gap-4">
+        {matches.map((match) => (
+          <MatchCard
+            key={match.id}
+            match={match}
+            adminMode={adminMode}
+            visibility={visibility}
+            finished={finished}
+            onResolve={onResolve}
+            onRevert={onRevert}
+            resolving={activeResolving === match.id}
+            reverting={activeReverting === match.id}
+            onViewMatchup={onViewMatchup}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BracketFeedback({ error, success }: { error: string | null; success: string | null }) {
+  return (
+    <>
+      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+      {success ? <p className="text-sm text-primary" role="status">{success}</p> : null}
+    </>
+  )
+}
+
+function ConfirmActionPanel({
+  action,
+  onConfirm,
+  onCancel,
+  onLoserScoreChange,
+}: {
+  action: ConfirmAction | null
+  onConfirm: () => void
+  onCancel: () => void
+  onLoserScoreChange: (loserScore: 0 | 1 | 2) => void
+}) {
+  if (!action) return null
+  return (
+    <ConfirmPanel
+      action={action}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      onLoserScoreChange={onLoserScoreChange}
+    />
+  )
+}
+
+function ChampionSection({ champion }: { champion: { registrationId: string | null; name: string | null } | null }) {
+  if (!champion) return null
+  return <ChampionBanner champion={champion} />
+}
+
+function AdminHistorySection({ show, tournamentId, totalPhases }: { show: boolean | undefined; tournamentId: string; totalPhases: number }) {
+  if (!show) return null
+  return (
+    <div className="flex items-center gap-2">
+      <BracketHistorySidebar tournamentId={tournamentId} totalPhases={totalPhases} />
+    </div>
+  )
+}
+
+function AutoRefreshNotice({ active }: { active: boolean }) {
+  if (!active) return null
+  return <p className="text-xs text-muted-foreground">Atualização automática a cada 10 segundos.</p>
+}
+
 export function BracketView({ tournamentId, adminMode, onResolve, onRevert, resolvingMatchId, revertingMatchId }: BracketViewProps) {
-  const [data, setData] = useState<BracketData | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const {
+    data,
+    error,
+    success,
+    setError,
+    resolvingId,
+    revertingId,
+    executeResolve,
+    executeRevert,
+  } = useBracketData(tournamentId)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
   const finished = data?.tournament.status === "finished"
   const internalResolve = adminMode && !onResolve
   const internalRevert = adminMode && !onRevert
-
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const [revertingId, setRevertingId] = useState<string | null>(null)
-
-  const activeResolving = resolvingMatchId ?? (internalResolve ? resolvingId : null)
-  const activeReverting = revertingMatchId ?? (internalRevert ? revertingId : null)
-
-  const loadBracket = useCallback(async () => {
-    try {
-      const result = await fetch(`/api/tournaments/${tournamentId}/bracket`)
-      if (!result.ok) {
-        const body = await result.json() as { error?: string }
-        setError(body.error ?? "Não foi possível carregar a chave.")
-        return
-      }
-      const json = await result.json() as BracketData
-      setData(json)
-      setError(null)
-    } catch {
-      setError("Erro de conexão ao carregar a chave.")
-    }
-  }, [tournamentId])
-
-  useEffect(() => {
-    let cancelled = false
-    let timeout: ReturnType<typeof setTimeout> | undefined
-
-    async function run() {
-      try {
-        const result = await fetch(`/api/tournaments/${tournamentId}/bracket`)
-        if (cancelled) return
-        if (!result.ok) {
-          const body = await result.json() as { error?: string }
-          setError(body.error ?? "Não foi possível carregar a chave.")
-          timeout = setTimeout(() => void run(), 10000)
-          return
-        }
-        const json = await result.json() as BracketData
-        setData(json)
-        setError(null)
-        if (json.tournament.status === "active") timeout = setTimeout(() => void run(), 10000)
-      } catch {
-        if (!cancelled) {
-          setError("Erro de conexão ao carregar a chave.")
-          timeout = setTimeout(() => void run(), 10000)
-        }
-      }
-    }
-    void run()
-    return () => { cancelled = true; if (timeout) clearTimeout(timeout) }
-  }, [tournamentId])
-
-  async function executeResolve(matchId: string, winnerRegistrationId: string) {
-    setError(null)
-    setSuccess(null)
-    setResolvingId(matchId)
-    const result = await fetch(`/api/tournaments/${tournamentId}/bracket/matches/${matchId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ winnerRegistrationId }),
-    })
-    setResolvingId(null)
-    if (!result.ok) {
-      setError(await readApiError(result, "Não foi possível definir o vencedor. Tente novamente."))
-      return
-    }
-    setSuccess("Partida finalizada com sucesso.")
-    void loadBracket()
-  }
-
-  async function executeRevert(matchId: string) {
-    setError(null)
-    setSuccess(null)
-    setRevertingId(matchId)
-    const result = await fetch(`/api/tournaments/${tournamentId}/bracket/matches/${matchId}`, { method: "DELETE" })
-    setRevertingId(null)
-    if (!result.ok) {
-      setError(await readApiError(result, "Não foi possível desfazer o resultado. Tente novamente."))
-      return
-    }
-    setSuccess("Resultado desfeito com sucesso.")
-    void loadBracket()
-  }
+  const activeResolving = resolveActiveId(resolvingMatchId, internalResolve, resolvingId)
+  const activeReverting = resolveActiveId(revertingMatchId, internalRevert, revertingId)
 
   function handleInternalResolve(matchId: string, winnerRegistrationId: string) {
     if (!data) return
@@ -289,7 +194,7 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
     const winnerName = winnerRegistrationId === bracketMatch.slot1RegistrationId
       ? (bracketMatch.slot1GuildTag ? `${bracketMatch.slot1Name} [${bracketMatch.slot1GuildTag}]` : bracketMatch.slot1Name)
       : (bracketMatch.slot2GuildTag ? `${bracketMatch.slot2Name} [${bracketMatch.slot2GuildTag}]` : bracketMatch.slot2Name)
-    setConfirmAction({ type: "resolve", matchId, label: winnerName, winnerRegistrationId })
+    setConfirmAction({ type: "resolve", matchId, label: winnerName, winnerRegistrationId, loserScore: 0 })
   }
 
   function handleInternalRevert(matchId: string) {
@@ -304,15 +209,23 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
   function executeConfirm() {
     if (!confirmAction) return
     if (confirmAction.type === "resolve" && confirmAction.winnerRegistrationId) {
-      void executeResolve(confirmAction.matchId, confirmAction.winnerRegistrationId)
+      const bracketMatch = data?.matches.find((m) => m.id === confirmAction.matchId)
+      if (!bracketMatch) {
+        setError("A chave foi atualizada. Recarregue a página e tente novamente.")
+        setConfirmAction(null)
+        return
+      }
+      const winnerIsSlot1 = confirmAction.winnerRegistrationId === bracketMatch.slot1RegistrationId
+      const loserScore = confirmAction.loserScore ?? 0
+      void executeResolve(confirmAction.matchId, confirmAction.winnerRegistrationId, {
+        score1: winnerIsSlot1 ? 3 : loserScore,
+        score2: winnerIsSlot1 ? loserScore : 3,
+      })
     } else if (confirmAction.type === "revert") {
       void executeRevert(confirmAction.matchId)
     }
     setConfirmAction(null)
   }
-
-  const resolveHandler = internalResolve ? handleInternalResolve : onResolve
-  const revertHandler = internalRevert ? handleInternalRevert : onRevert
 
   if (error && !data) {
     return (
@@ -334,90 +247,55 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
     return <p className="text-sm text-muted-foreground">Nenhuma partida encontrada.</p>
   }
 
-  const phases = new Map<number, Match[]>()
-  for (const match of data.matches) {
-    const list = phases.get(match.phase) ?? []
-    list.push(match)
-    phases.set(match.phase, list)
-  }
+  const phases = groupMatchesByPhase(data.matches)
+  const selectedMatch = findMatch(data.matches, selectedMatchId)
 
   return (
     <div className="space-y-6">
-      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
-      {success ? <p className="text-sm text-primary" role="status">{success}</p> : null}
+      <BracketFeedback error={error} success={success} />
 
-      {confirmAction ? (
-        <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 space-y-3">
-          <p className="text-sm font-medium">
-            {confirmAction.type === "resolve"
-              ? <>Definir <strong>{confirmAction.label}</strong> como vencedor?</>
-              : <>Desfazer o resultado de <strong>{confirmAction.label}</strong>?</>
-            }
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={executeConfirm}>Confirmar</Button>
-            <Button size="sm" variant="outline" onClick={() => setConfirmAction(null)}>Cancelar</Button>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmActionPanel
+        action={confirmAction}
+        onConfirm={executeConfirm}
+        onCancel={() => setConfirmAction(null)}
+        onLoserScoreChange={(loserScore) => setConfirmAction((current) => current ? { ...current, loserScore } : current)}
+      />
 
-      {data.champion ? (
-        <Card className="border-accent/40 bg-accent/5">
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="grid size-12 place-items-center rounded-full bg-accent/20 ring-2 ring-accent/40">
-              <Trophy className="size-6 text-accent" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Campeão</p>
-              <p className="font-heading text-lg font-bold">{data.champion.name}</p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+      <ChampionSection champion={data.champion} />
 
-      {finished ? (
-        <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-sm text-muted-foreground">
-          <Trophy className="size-4 text-accent" aria-hidden="true" />
-          <span>Este torneio foi <strong className="font-semibold text-foreground">finalizado</strong>. A chave reflete o resultado final e não recebe novas atualizações.</span>
-        </div>
-      ) : null}
+      <FinishedNotice show={finished} />
 
-      {adminMode ? (
-        <div className="flex items-center gap-2">
-          <BracketHistorySidebar tournamentId={tournamentId} totalPhases={data.totalPhases} />
-        </div>
-      ) : null}
+      <AdminHistorySection show={adminMode} tournamentId={tournamentId} totalPhases={data.totalPhases} />
 
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-6" role="region" aria-label="Chave do torneio">
           {Array.from(phases.entries()).map(([phase, matches]) => (
-            <div key={phase} className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <Swords className="size-4 text-accent" aria-hidden="true" />
-                <h3 className="font-heading text-sm font-semibold">{getPhaseLabel(phase, data.totalPhases)}</h3>
-              </div>
-              <div className="flex flex-col gap-4">
-                {matches.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    adminMode={adminMode}
-                    visibility={data.tournament.visibility}
-                    finished={finished}
-                    onResolve={resolveHandler}
-                    onRevert={revertHandler}
-                    resolving={activeResolving === match.id}
-                    reverting={activeReverting === match.id}
-                  />
-                ))}
-              </div>
-            </div>
+            <PhaseColumn
+              key={phase}
+              phase={phase}
+              matches={matches}
+              totalPhases={data.totalPhases}
+              visibility={data.tournament.visibility}
+              adminMode={adminMode}
+              finished={finished}
+              onResolve={internalResolve ? handleInternalResolve : onResolve}
+              onRevert={internalRevert ? handleInternalRevert : onRevert}
+              activeResolving={activeResolving}
+              activeReverting={activeReverting}
+              onViewMatchup={setSelectedMatchId}
+            />
           ))}
         </div>
       </div>
-      {data.tournament.status === "active" ? (
-        <p className="text-xs text-muted-foreground">Atualização automática a cada 10 segundos.</p>
-      ) : null}
+
+      <AutoRefreshNotice active={data.tournament.status === "active"} />
+
+      <MatchupDialog
+        match={selectedMatch}
+        visibility={data.tournament.visibility}
+        open={Boolean(selectedMatch)}
+        onOpenChange={(open) => { if (!open) setSelectedMatchId(null) }}
+      />
     </div>
   )
 }

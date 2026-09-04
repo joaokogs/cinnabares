@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { SearchX } from "lucide-react"
+import NextImage from "next/image"
+import { SearchX, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -9,6 +10,7 @@ export type RankingRow = {
   name: string
   secondary: string | null
   href: string | null
+  avatarUrl?: string | null
   total: number
   tournaments: number
 }
@@ -70,19 +72,35 @@ export function RankingList({
             >
               {rank}
             </span>
+            {view === "players" ? (
+              <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-accent ring-1 ring-accent/20">
+                {row.avatarUrl ? (
+                  <NextImage
+                    src={row.avatarUrl}
+                    alt=""
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <User className="size-5" aria-hidden="true" />
+                )}
+              </div>
+            ) : null}
             <div className="min-w-0 flex-1">
               {row.href ? (
                 <Link
                   href={row.href}
-                  className="block truncate rounded font-medium transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+                  className="block rounded transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
                 >
-                  {row.name}
-                  {row.secondary ? <span className="text-muted-foreground"> {row.secondary}</span> : null}
+                  <span className="block truncate font-medium">{row.name}</span>
+                  {row.secondary ? <span className="block truncate text-sm text-muted-foreground">{row.secondary}</span> : null}
                 </Link>
               ) : (
-                <p className="truncate font-medium">
-                  {row.name}
-                  {row.secondary ? <span className="text-muted-foreground"> {row.secondary}</span> : null}
+                <p>
+                  <span className="block truncate font-medium">{row.name}</span>
+                  {row.secondary ? <span className="block truncate text-sm text-muted-foreground">{row.secondary}</span> : null}
                 </p>
               )}
               <p className="text-xs text-muted-foreground">

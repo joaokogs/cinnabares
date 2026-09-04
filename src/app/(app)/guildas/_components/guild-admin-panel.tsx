@@ -57,7 +57,8 @@ export function GuildAdminPanel({ guild, initialRoles }: { guild: GuildData; ini
       })
       const result = response.ok ? await response.json() as { role?: { id: string; name: string; color: string } } : null
       if (!response.ok || !result?.role) throw new Error(await readApiError(response, "Não foi possível criar o cargo. Confira o nome e tente novamente."))
-      setRoles((currentRoles) => [...currentRoles, { ...result.role!, position: currentRoles.length, isDefault: false, permissions: {} }])
+      const role = result.role
+      setRoles((currentRoles) => [...currentRoles, { ...role, position: currentRoles.length, isDefault: false, permissions: {} }])
       setRoleName("")
     } catch (roleError) {
       setError(getErrorMessage(roleError, "Não foi possível criar o cargo. Tente novamente."))
@@ -71,7 +72,7 @@ export function GuildAdminPanel({ guild, initialRoles }: { guild: GuildData; ini
       <Card className="border-border/70 bg-card/90">
         <CardHeader><CardTitle>Informacoes publicas</CardTitle><CardDescription>Esses dados aparecem na pagina da guilda.</CardDescription></CardHeader>
         <CardContent>
-          <form className="space-y-5" onSubmit={handleSave}>
+          <form className="space-y-5" onSubmit={(event) => void handleSave(event)}>
             <GuildMediaUploader guildId={guild.id} type="avatar" initialUrl={guild.imageUrl} guildName={guild.name} />
             <GuildMediaUploader guildId={guild.id} type="banner" initialUrl={guild.bannerUrl} guildName={guild.name} />
             <label className="block space-y-2 text-sm font-medium" htmlFor="admin-guild-name">Nome<input id="admin-guild-name" required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
@@ -87,7 +88,7 @@ export function GuildAdminPanel({ guild, initialRoles }: { guild: GuildData; ini
         <CardHeader><CardTitle>Cargos</CardTitle><CardDescription>Permissoes serao vinculadas aos cargos em uma proxima etapa.</CardDescription></CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">{roles.map((role) => <div key={role.id} className="flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-3 py-2.5"><div className="flex items-center gap-2"><span className="size-3 rounded-full" style={{ backgroundColor: role.color }} aria-hidden="true" /><span className="font-medium">{role.name}</span></div>{role.isDefault ? <span className="text-xs text-muted-foreground">padrao</span> : null}</div>)}</div>
-          <form className="space-y-3 border-t border-border/70 pt-5" onSubmit={handleCreateRole}>
+          <form className="space-y-3 border-t border-border/70 pt-5" onSubmit={(event) => void handleCreateRole(event)}>
             <label className="block space-y-2 text-sm font-medium" htmlFor="role-name">Novo cargo<input id="role-name" required minLength={2} maxLength={40} value={roleName} onChange={(event) => setRoleName(event.target.value)} placeholder="Moderador" className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
             <label className="flex items-center justify-between gap-3 text-sm font-medium" htmlFor="role-color">Cor<input id="role-color" type="color" value={roleColor} onChange={(event) => setRoleColor(event.target.value)} className="size-10 cursor-pointer rounded-lg border border-input bg-background/70 p-1" /></label>
             <Button className="w-full" variant="outline" type="submit" disabled={isCreatingRole}>{isCreatingRole ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />} {isCreatingRole ? "Criando..." : "Criar cargo"}</Button>

@@ -1,9 +1,7 @@
-import { and, eq } from "drizzle-orm"
 import { randomUUID } from "node:crypto"
 
-import { db } from "@/db"
-import { guild, guildRole } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { findGuildFounder, findRoleByName, insertGuildRole } from "@/lib/guilds/repository"
 
 export async function POST(
   request: Request,
@@ -13,11 +11,7 @@ export async function POST(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildFounder(guildId)
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
     return Response.json({ error: "Você não tem permissão para criar cargos. Apenas o fundador pode fazer isso." }, { status: 403 })
   }
@@ -32,17 +26,10 @@ export async function POST(
     return Response.json({ error: "Escolha uma cor hexadecimal válida." }, { status: 400 })
   }
 
-  const [existingRole] = await db
-    .select({ id: guildRole.id })
-    .from(guildRole)
-    .where(and(eq(guildRole.guildId, guildId), eq(guildRole.name, name)))
-    .limit(1)
+  const existingRole = await findRoleByName(guildId, name)
   if (existingRole) return Response.json({ error: "Já existe um cargo com esse nome. Escolha outro." }, { status: 409 })
 
-  const [role] = await db
-    .insert(guildRole)
-    .values({ id: randomUUID(), guildId, name, color, createdBy: session.user.id })
-    .returning({ id: guildRole.id, name: guildRole.name, color: guildRole.color })
+  const role = await insertGuildRole({ id: randomUUID(), guildId, name, color, createdBy: session.user.id })
 
   return Response.json({ role })
 }

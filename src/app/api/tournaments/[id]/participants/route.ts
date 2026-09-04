@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import { canViewTournamentParticipants } from "@/lib/tournaments/auth"
-import { getTournament, listApprovedTournamentParticipants } from "@/lib/tournaments/queries"
+import { getTournament, getUsersByIds, listApprovedTournamentParticipants } from "@/lib/tournaments/queries"
 import { getVisibleRoster } from "@/lib/tournaments/roster"
 
 type RouteProps = { params: Promise<{ id: string }> }
@@ -18,8 +18,11 @@ export async function GET(request: Request, { params }: RouteProps) {
   }
 
   const participants = await listApprovedTournamentParticipants(id)
+  const playerIds = participants.flatMap((participant) => participant.roster.map((entry) => entry.playerId))
+  const users = await getUsersByIds(playerIds)
+
   return Response.json(participants.map((participant) => ({
     ...participant,
-    roster: getVisibleRoster(participant.roster, currentTournament.visibility),
+    roster: getVisibleRoster(participant.roster, currentTournament.visibility, users),
   })))
 }

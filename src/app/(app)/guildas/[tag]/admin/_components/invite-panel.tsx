@@ -72,7 +72,7 @@ export function InvitePanel({ guildId }: InvitePanelProps) {
         <CardDescription>Gere um link de convite para novos membros entrarem na guilda.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form className="flex gap-3" onSubmit={handleGenerate}>
+        <form className="flex gap-3" onSubmit={(event) => void handleGenerate(event)}>
           <Button className="flex-1" variant="outline" type="submit" disabled={isGenerating}>
             {isGenerating ? (
               <><LoaderCircle className="animate-spin" aria-hidden="true" /> Gerando...</>
@@ -90,7 +90,7 @@ export function InvitePanel({ guildId }: InvitePanelProps) {
                 size="sm"
                 variant="ghost"
                 type="button"
-                onClick={handleCopy}
+                onClick={() => void handleCopy()}
                 aria-label={copied ? "Link copiado" : "Copiar link de convite"}
               >
                 {copied ? <Check className="size-4 text-green-500" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}

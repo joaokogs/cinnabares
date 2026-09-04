@@ -18,6 +18,45 @@ type Registration = {
   createdAt: string
 }
 
+type RegistrationQueueProps = {
+  registrations: Registration[]
+  onReview: (id: string, reviewStatus: "approved" | "rejected") => void
+}
+
+function RegistrationQueue({ registrations, onReview }: RegistrationQueueProps) {
+  return (
+    <div className="space-y-3">
+      {registrations.length ? registrations.map((registration) => (
+        <div key={registration.id} className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-background/40 p-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="font-medium">
+              {registration.guildName
+                ? `${registration.guildName} [${registration.guildTag}]`
+                : registration.username ?? registration.userName ?? "Player"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {new Date(registration.createdAt).toLocaleString("pt-BR")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={registration.status === "approved" ? "default" : "outline"}>
+              {registration.status}
+            </Badge>
+            {registration.status === "pending" ? (
+              <>
+                <Button size="sm" onClick={() => onReview(registration.id, "approved")}>Aceitar</Button>
+                <Button size="sm" variant="outline" onClick={() => onReview(registration.id, "rejected")}>Recusar</Button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )) : (
+        <p className="text-sm text-muted-foreground">Nenhuma inscrição na fila.</p>
+      )}
+    </div>
+  )
+}
+
 export function TournamentControls({ tournamentId, status }: { tournamentId: string; status: string }) {
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -102,35 +141,7 @@ export function TournamentControls({ tournamentId, status }: { tournamentId: str
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
 
         {showRegistrationQueue ? (
-          <div className="space-y-3">
-            {registrations.length ? registrations.map((registration) => (
-              <div key={registration.id} className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-background/40 p-3 sm:flex-row sm:items-center">
-                <div>
-                  <p className="font-medium">
-                    {registration.guildName
-                      ? `${registration.guildName} [${registration.guildTag}]`
-                      : registration.username ?? registration.userName ?? "Player"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(registration.createdAt).toLocaleString("pt-BR")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={registration.status === "approved" ? "default" : "outline"}>
-                    {registration.status}
-                  </Badge>
-                  {registration.status === "pending" ? (
-                    <>
-                      <Button size="sm" onClick={() => void review(registration.id, "approved")}>Aceitar</Button>
-                      <Button size="sm" variant="outline" onClick={() => void review(registration.id, "rejected")}>Recusar</Button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">Nenhuma inscrição na fila.</p>
-            )}
-          </div>
+          <RegistrationQueue registrations={registrations} onReview={(id, reviewStatus) => void review(id, reviewStatus)} />
         ) : null}
 
         {(status === "active" || status === "finished") ? (

@@ -5,17 +5,18 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { CircleDot, Package, X } from "lucide-react"
 
 import type { VisibleRosterEntry } from "@/lib/tournaments/roster"
+import { TIER_LABELS } from "@/lib/tournaments/tiers"
 
 type Visibility = "blind" | "partial" | "total"
 
-function capitalize(s: string): string {
+export function capitalize(s: string): string {
   return s
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
 }
 
-function RosterIcon({ name, kind, className = "size-8" }: { name: string; kind: "pokemon" | "item"; className?: string }) {
+export function RosterIcon({ name, kind, className = "size-8" }: { name: string; kind: "pokemon" | "item"; className?: string }) {
   const [src, setSrc] = useState<string | null>(() => kind === "item" ? itemSpriteUrl(name) : pokemonSpriteCache.get(name.trim().toLowerCase()) ?? null)
   const Icon = kind === "pokemon" ? CircleDot : Package
 
@@ -165,6 +166,12 @@ function SidebarState({ name, roster, showItems, onClose }: { name: string; rost
 function SidebarContent({ name, roster, showItems }: { name: string; roster: VisibleRosterEntry[]; showItems: boolean }) {
   return roster.map((entry, i) => (
     <section key={`${name}-${i}`} className="border-b border-border/60 pb-4 last:border-0">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-semibold">{entry.playerName}</p>
+        <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {TIER_LABELS[entry.tier] ?? entry.tier}
+        </span>
+      </div>
       {entry.team && entry.team.length > 0 ? (
         <ul className="space-y-3 pl-2">
           {entry.team.map((pokemon, j) => (

@@ -1,9 +1,7 @@
 import { del, get, put } from "@vercel/blob"
-import { eq } from "drizzle-orm"
 
-import { db } from "@/db"
-import { guild } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { clearGuildImage, findGuildImage, updateGuildImage } from "@/lib/guilds/repository"
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"])
@@ -18,11 +16,7 @@ export async function GET(
 ) {
   const { guildId } = await params
   const pathname = new URL(request.url).searchParams.get("path")
-  const [currentGuild] = await db
-    .select({ image: guild.image })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildImage(guildId)
 
   if (!pathname || !currentGuild?.image || currentGuild.image !== pathname) {
     return new Response("Imagem não encontrada.", { status: 404 })
@@ -47,11 +41,7 @@ export async function POST(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId, image: guild.image })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildImage(guildId)
 
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
     return Response.json({ error: "Você não tem permissão para editar a imagem desta guilda." }, { status: 403 })
@@ -77,10 +67,7 @@ export async function POST(
     cacheControlMaxAge: 60 * 60 * 24 * 30,
   })
 
-  await db
-    .update(guild)
-    .set({ image: blob.pathname, updatedAt: new Date() })
-    .where(eq(guild.id, guildId))
+  await updateGuildImage(guildId, blob.pathname)
 
   if (currentGuild.image) {
     await del(currentGuild.image).catch(() => {})
@@ -97,11 +84,7 @@ export async function DELETE(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId, image: guild.image })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildImage(guildId)
 
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
     return Response.json({ error: "Você não tem permissão para remover a imagem desta guilda." }, { status: 403 })
@@ -111,10 +94,7 @@ export async function DELETE(
     await del(currentGuild.image).catch(() => {})
   }
 
-  await db
-    .update(guild)
-    .set({ image: null, updatedAt: new Date() })
-    .where(eq(guild.id, guildId))
+  await clearGuildImage(guildId)
 
   return Response.json({ ok: true })
 }

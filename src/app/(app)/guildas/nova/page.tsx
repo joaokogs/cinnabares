@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Criar guilda",
 }
 
-export default async function NewGuildPage() {
+export default function NewGuildPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-12 sm:px-6 lg:py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" aria-hidden="true" />

@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm"
-
-import { db } from "@/db"
-import { tournament } from "@/db/schema"
 import { getAdminSession } from "@/lib/tournaments/auth"
 import { getTournament } from "@/lib/tournaments/queries"
+import { deleteTournament, updateTournamentStatus } from "@/lib/tournaments/repository"
+import type { TournamentStatus } from "@/lib/tournaments/repository"
 
 type RouteProps = { params: Promise<{ id: string }> }
 
@@ -19,7 +17,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (admin.response) return admin.response
 
   const { id } = await params
-  const body = await request.json() as { status?: "draft" | "open" | "closed" | "active" | "finished" }
+  const body = await request.json() as { status?: TournamentStatus }
   if (!body.status || !["draft", "open", "closed", "active", "finished"].includes(body.status)) {
     return Response.json({ error: "Escolha um status válido para o torneio." }, { status: 400 })
   }
@@ -38,7 +36,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     return Response.json({ error: "Essa transição de status não é permitida." }, { status: 409 })
   }
 
-  const [updated] = await db.update(tournament).set({ status: body.status, updatedAt: new Date() }).where(eq(tournament.id, id)).returning({ id: tournament.id })
+  const updated = await updateTournamentStatus(id, body.status)
   if (!updated) return Response.json({ error: "Não encontramos esse torneio para atualizar." }, { status: 404 })
   return Response.json(updated)
 }
@@ -48,7 +46,7 @@ export async function DELETE(request: Request, { params }: RouteProps) {
   if (admin.response) return admin.response
 
   const { id } = await params
-  const [deleted] = await db.delete(tournament).where(eq(tournament.id, id)).returning({ id: tournament.id })
+  const deleted = await deleteTournament(id)
   if (!deleted) return Response.json({ error: "Não encontramos esse torneio para remover." }, { status: 404 })
   return new Response(null, { status: 204 })
 }

@@ -41,7 +41,7 @@ export function RegistrationForm({ tournamentId, format, visibility, tiers, tier
     let roster: unknown[] = []
     if (format === "individual" && visibility !== "blind") roster = [{ playerId, tier, team: pokemon.map((entry) => ({ name: entry.name, ...(visibility === "total" ? { item: entry.item } : {}) })) }]
     if (format === "guild") {
-      try { roster = JSON.parse(guildRoster) } catch { setError("A escalação da guilda precisa ser um JSON válido."); setPending(false); return }
+      try { roster = JSON.parse(guildRoster) as unknown[] } catch { setError("A escalação da guilda precisa ser um JSON válido."); setPending(false); return }
     }
     const result = await fetch(`/api/tournaments/${tournamentId}/registrations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guildId, roster }) })
     setPending(false)
@@ -52,7 +52,7 @@ export function RegistrationForm({ tournamentId, format, visibility, tiers, tier
   if (status !== "open") return <p className="text-sm text-muted-foreground">As inscrições estão fechadas.</p>
   if (format === "guild" && (!guildId || !isGuildFounder)) return <p className="text-sm text-muted-foreground">Apenas o líder de uma guilda pode enviar esta inscrição.</p>
 
-  return <form className="space-y-4" onSubmit={submit}>
+  return <form className="space-y-4" onSubmit={(event) => void submit(event)}>
     {format === "guild" ? <label className="block space-y-2 text-sm font-medium">Escalação em JSON<textarea required value={guildRoster} onChange={(event) => setGuildRoster(event.target.value)} rows={8} placeholder={'[{"playerId":"id-do-player","tier":"overused","team":[{"name":"Garchomp"}]}]'} className="w-full rounded-lg border border-input bg-background/70 px-3 py-2 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><span className="block text-xs font-normal text-muted-foreground">Informe {teamSize} players. Tiers: {Object.entries(tierRules).map(([name, amount]) => `${name}: ${amount}`).join(", ")}.</span></label> : visibility === "blind" ? <p className="rounded-lg border border-border bg-background/50 p-3 text-sm text-muted-foreground">Você não precisa cadastrar o time agora.</p> : <><label className="block space-y-2 text-sm font-medium">Tier<select value={tier} onChange={(event) => setTier(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm">{tiers.map((currentTier) => <option key={currentTier}>{currentTier}</option>)}</select></label><fieldset className="space-y-2"><legend className="text-sm font-medium">Time de 6 Pokémon</legend>{pokemon.map((entry, index) => <div key={index} className="grid grid-cols-2 gap-2"><PokeAutocomplete id={`pokemon-${index}`} required value={entry.name} onChange={(value) => updatePokemon(index, "name", value)} options={pokemonOptions} kind="pokemon" placeholder={`Pokémon ${index + 1}`} />{visibility === "total" ? <PokeAutocomplete id={`item-${index}`} required value={entry.item} onChange={(value) => updatePokemon(index, "item", value)} options={itemOptions} kind="item" placeholder="Item" /> : null}</div>)}</fieldset></>}
     {error ? <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p> : null}<Button type="submit" className="w-full" disabled={pending}>{pending ? "Enviando..." : "Enviar inscrição"}</Button>
   </form>

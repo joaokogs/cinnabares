@@ -1,16 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
-import { db } from "@/db"
-import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
 import { canViewTournamentParticipants } from "@/lib/tournaments/auth"
 import { getTournament } from "@/lib/tournaments/queries"
+import { getUserRole } from "@/lib/users/account"
 import { BracketView } from "./_components/bracket-view"
 
 type PageProps = { params: Promise<{ id: string }> }
@@ -29,8 +27,7 @@ export default async function BracketPage({ params }: PageProps) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session || !await canViewTournamentParticipants(id, session.user.id)) notFound()
 
-  const [account] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id)).limit(1)
-  const isAdmin = account?.role === "admin"
+  const isAdmin = (await getUserRole(session.user.id)) === "admin"
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-10 sm:px-6 lg:py-14">

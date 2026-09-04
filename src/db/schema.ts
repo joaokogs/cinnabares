@@ -226,6 +226,8 @@ export const bracketMatch = pgTable(
       .references(() => tournamentRegistration.id, { onDelete: "set null" }),
     winnerRegistrationId: text("winner_registration_id")
       .references(() => tournamentRegistration.id, { onDelete: "set null" }),
+    score1: integer("score1").notNull().default(0),
+    score2: integer("score2").notNull().default(0),
     status: bracketMatchStatus("status").notNull().default("pending"),
     ...timestamps,
   },

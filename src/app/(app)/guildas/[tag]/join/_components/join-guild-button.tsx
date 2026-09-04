@@ -36,7 +36,7 @@ export function JoinGuildButton({ tag, token }: JoinGuildButtonProps) {
   }
 
   return (
-    <form onSubmit={handleJoin} className="space-y-4">
+    <form onSubmit={(event) => void handleJoin(event)} className="space-y-4">
       {error ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
           {error}

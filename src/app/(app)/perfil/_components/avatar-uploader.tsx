@@ -14,6 +14,50 @@ function blobImageLoader({ src }: ImageLoaderProps) {
   return src
 }
 
+function fitWithinBounds(width: number, height: number, maxEdge: number) {
+  const scale = Math.min(1, maxEdge / Math.max(width, height))
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+function toWebPBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob | null>((blobResolve) => canvas.toBlob(blobResolve, "image/webp", quality))
+}
+
+async function compressAvatarImage(image: HTMLImageElement) {
+  let { width, height } = fitWithinBounds(image.naturalWidth, image.naturalHeight, MAX_EDGE)
+  const canvas = document.createElement("canvas")
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Não foi possível preparar a imagem para envio.")
+  }
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    canvas.width = width
+    canvas.height = height
+    context.clearRect(0, 0, width, height)
+    context.drawImage(image, 0, 0, width, height)
+
+    const blob = await toWebPBlob(canvas, [0.82, 0.7, 0.58, 0.46][attempt])
+
+    if (!blob) {
+      throw new Error("Não foi possível preparar a imagem para envio.")
+    }
+
+    if (blob.size <= MAX_BYTES || attempt === 3) {
+      return new File([blob], "avatar.webp", { type: "image/webp" })
+    }
+
+    width = Math.max(128, Math.round(width * 0.8))
+    height = Math.max(128, Math.round(height * 0.8))
+  }
+
+  throw new Error("Não foi possível preparar a imagem para envio.")
+}
+
 function compressAvatar(file: File) {
   return new Promise<File>((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file)
@@ -21,42 +65,7 @@ function compressAvatar(file: File) {
 
     image.onload = async () => {
       try {
-        let width = image.naturalWidth
-        let height = image.naturalHeight
-        const scale = Math.min(1, MAX_EDGE / Math.max(width, height))
-        width = Math.max(1, Math.round(width * scale))
-        height = Math.max(1, Math.round(height * scale))
-
-        const canvas = document.createElement("canvas")
-        const context = canvas.getContext("2d")
-
-        if (!context) {
-          throw new Error("Não foi possível preparar a imagem para envio.")
-        }
-
-        for (let attempt = 0; attempt < 4; attempt += 1) {
-          canvas.width = width
-          canvas.height = height
-          context.clearRect(0, 0, width, height)
-          context.drawImage(image, 0, 0, width, height)
-
-          const quality = [0.82, 0.7, 0.58, 0.46][attempt]
-          const blob = await new Promise<Blob | null>((blobResolve) =>
-            canvas.toBlob(blobResolve, "image/webp", quality)
-          )
-
-          if (!blob) {
-            throw new Error("Não foi possível preparar a imagem para envio.")
-          }
-
-          if (blob.size <= MAX_BYTES || attempt === 3) {
-            resolve(new File([blob], "avatar.webp", { type: "image/webp" }))
-            return
-          }
-
-          width = Math.max(128, Math.round(width * 0.8))
-          height = Math.max(128, Math.round(height * 0.8))
-        }
+        resolve(await compressAvatarImage(image))
       } catch (error) {
         reject(error)
       } finally {
@@ -147,7 +156,9 @@ export function AvatarUploader({ initialUrl, username }: AvatarUploaderProps) {
           className="sr-only"
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          onChange={handleFileChange}
+          onChange={(event) => {
+            void handleFileChange(event)
+          }}
           aria-label="Selecionar avatar"
         />
       </div>

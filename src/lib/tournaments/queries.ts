@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { aliasedTable } from "drizzle-orm"
 
 import { db } from "@/db"
 import { bracket, bracketMatch, guild, guildMember, tournament, tournamentRegistration, user } from "@/db/schema"
+import type { RosterUser } from "@/lib/tournaments/roster"
 
 export async function listTournaments(includeDrafts = false) {
   const query = db
@@ -106,6 +107,18 @@ export async function getBracketMatch(matchId: string) {
   return result ?? null
 }
 
+export async function getUsersByIds(playerIds: string[]): Promise<Map<string, RosterUser>> {
+  const uniqueIds = [...new Set(playerIds.filter((id): id is string => Boolean(id)))]
+  if (uniqueIds.length === 0) return new Map()
+
+  const rows = await db
+    .select({ id: user.id, username: user.username, name: user.name })
+    .from(user)
+    .where(inArray(user.id, uniqueIds))
+
+  return new Map(rows.map((row) => [row.id, row]))
+}
+
 export async function getBracketMatchesWithRegistrations(bracketId: string) {
   const slot2Reg = aliasedTable(tournamentRegistration, "slot2_reg")
   const slot2User = aliasedTable(user, "slot2_user")
@@ -122,6 +135,8 @@ export async function getBracketMatchesWithRegistrations(bracketId: string) {
       slot1RegistrationId: bracketMatch.slot1RegistrationId,
       slot2RegistrationId: bracketMatch.slot2RegistrationId,
       winnerRegistrationId: bracketMatch.winnerRegistrationId,
+      score1: bracketMatch.score1,
+      score2: bracketMatch.score2,
       status: bracketMatch.status,
       slot1Name: sql<string>`coalesce(${guild.name}, ${user.username}, ${user.name}, 'bye')`,
       slot1GuildTag: guild.tag,

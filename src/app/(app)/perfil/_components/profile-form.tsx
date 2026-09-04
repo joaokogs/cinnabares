@@ -52,7 +52,12 @@ export function ProfileForm({ initialName, initialUsername }: ProfileFormProps) 
   }
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form
+      className="space-y-5"
+      onSubmit={(event) => {
+        void handleSubmit(event)
+      }}
+    >
       <label className="block space-y-2 text-sm font-medium" htmlFor="profile-name">
         Nome
         <input

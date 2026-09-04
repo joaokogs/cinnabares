@@ -1,9 +1,7 @@
 import { del, get, put } from "@vercel/blob"
-import { eq } from "drizzle-orm"
 
-import { db } from "@/db"
-import { guild } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { clearGuildBanner, findGuildBanner, updateGuildBanner } from "@/lib/guilds/repository"
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"])
@@ -18,11 +16,7 @@ export async function GET(
 ) {
   const { guildId } = await params
   const pathname = new URL(request.url).searchParams.get("path")
-  const [currentGuild] = await db
-    .select({ banner: guild.banner })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildBanner(guildId)
 
   if (!pathname || !currentGuild?.banner || currentGuild.banner !== pathname) {
     return new Response("Banner não encontrado.", { status: 404 })
@@ -47,11 +41,7 @@ export async function POST(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId, banner: guild.banner })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildBanner(guildId)
 
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
     return Response.json({ error: "Você não tem permissão para editar o banner desta guilda." }, { status: 403 })
@@ -77,10 +67,7 @@ export async function POST(
     cacheControlMaxAge: 60 * 60 * 24 * 30,
   })
 
-  await db
-    .update(guild)
-    .set({ banner: blob.pathname, updatedAt: new Date() })
-    .where(eq(guild.id, guildId))
+  await updateGuildBanner(guildId, blob.pathname)
 
   if (currentGuild.banner) {
     await del(currentGuild.banner).catch(() => {})
@@ -97,11 +84,7 @@ export async function DELETE(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId, banner: guild.banner })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildBanner(guildId)
 
   if (!currentGuild || currentGuild.founderId !== session.user.id) {
     return Response.json({ error: "Você não tem permissão para remover o banner desta guilda." }, { status: 403 })
@@ -111,10 +94,7 @@ export async function DELETE(
     await del(currentGuild.banner).catch(() => {})
   }
 
-  await db
-    .update(guild)
-    .set({ banner: null, updatedAt: new Date() })
-    .where(eq(guild.id, guildId))
+  await clearGuildBanner(guildId)
 
   return Response.json({ ok: true })
 }

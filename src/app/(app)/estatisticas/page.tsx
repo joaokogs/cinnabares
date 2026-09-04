@@ -8,7 +8,7 @@ import { computeChampionPokemonItemUsage, titleCase } from "@/lib/tournaments/st
 import { getFinishedChampionTournaments, getGuildPointsRanking, getPlayerPointsRanking, type StatsFilters } from "@/lib/tournaments/stats"
 import { ItemSprite } from "./_components/item-sprite"
 import { PokemonSprite } from "./_components/pokemon-sprite"
-import { PERIODS, StatsFiltersForm, TIERS, TIER_LABELS, type Tier } from "./_components/stats-filters"
+import { StatsFiltersForm, TIERS, TIER_LABELS, type Tier } from "./_components/stats-filters"
 import { PointsRankingCard } from "./_components/points-ranking"
 
 export const metadata: Metadata = {
@@ -18,6 +18,26 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 type SearchParams = { tier?: string; format?: string; period?: string }
+
+function buildStatsFilters(params: SearchParams): StatsFilters {
+  const filters: StatsFilters = {}
+  if (params.tier && (TIERS as readonly string[]).includes(params.tier)) {
+    filters.tier = params.tier as Tier
+  }
+  if (params.format === "guild") {
+    filters.format = params.format
+  }
+  if (params.period && params.period !== "all") {
+    const days = Number(params.period)
+    if (!Number.isNaN(days) && days > 0) {
+      const from = new Date()
+      from.setHours(0, 0, 0, 0)
+      from.setDate(from.getDate() - days)
+      filters.from = from
+    }
+  }
+  return filters
+}
 
 function formatDate(value: Date | string | null): string {
   if (!value) return "—"
@@ -44,22 +64,7 @@ function championLabel(champion: {
 export default async function StatsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams
 
-  const filters: StatsFilters = {}
-  if (params.tier && (TIERS as readonly string[]).includes(params.tier)) {
-    filters.tier = params.tier as Tier
-  }
-  if (params.format === "guild") {
-    filters.format = params.format
-  }
-  if (params.period && params.period !== "all") {
-    const days = Number(params.period)
-    if (!Number.isNaN(days) && days > 0) {
-      const from = new Date()
-      from.setHours(0, 0, 0, 0)
-      from.setDate(from.getDate() - days)
-      filters.from = from
-    }
-  }
+  const filters = buildStatsFilters(params)
 
   const tournaments = await getFinishedChampionTournaments(filters)
   const topPokemon = computeChampionPokemonItemUsage(tournaments, { limit: 6, itemsLimit: 3 })

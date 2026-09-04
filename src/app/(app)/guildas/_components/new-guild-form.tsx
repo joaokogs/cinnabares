@@ -43,7 +43,7 @@ export function NewGuildForm() {
         <CardDescription>O fundador e o cargo Founder serao criados automaticamente.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>
           <label className="block space-y-2 text-sm font-medium" htmlFor="guild-name">
             Nome
             <input id="guild-name" required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />

@@ -94,7 +94,7 @@ export function GuildMembershipActions({ guildId, isFounder, isMember }: GuildMe
               confirmar, digite <span className="font-semibold text-foreground">Confirmar</span> no campo abaixo.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleDelete} className="space-y-4">
+          <form onSubmit={(event) => void handleDelete(event)} className="space-y-4">
             <label className="block space-y-2 text-sm font-medium" htmlFor="delete-guild-confirm">
               <span className="text-muted-foreground">
                 Digite <span className="font-semibold text-foreground">Confirmar</span> para habilitar a exclusão
@@ -160,7 +160,7 @@ export function GuildMembershipActions({ guildId, isFounder, isMember }: GuildMe
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="button" variant="destructive" onClick={handleLeave} disabled={isLeaving}>
+            <Button type="button" variant="destructive" onClick={() => void handleLeave()} disabled={isLeaving}>
               {isLeaving ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <LogOut aria-hidden="true" />}
               {isLeaving ? "Saindo..." : "Sair da guilda"}
             </Button>

@@ -11,9 +11,9 @@ import {
 } from "@/lib/tournaments/stats"
 import { TIERS } from "@/lib/tournaments/tiers"
 
-import { RankingsFilters } from "./_components/rankings-filters"
-import { RankingList, type RankingRow } from "./_components/ranking-list"
-import { ViewToggle, type RankingView } from "./_components/view-toggle"
+import { RankingsFilters } from "@/app/(public)/rankings/_components/rankings-filters"
+import { RankingList, type RankingRow } from "@/app/(public)/rankings/_components/ranking-list"
+import { ViewToggle, type RankingView } from "@/app/(public)/rankings/_components/view-toggle"
 
 export const metadata: Metadata = {
   title: "Rankings",
@@ -48,6 +48,9 @@ function toPlayerRows(entries: PlayerPointsRankingEntry[]): RankingRow[] {
     name: entry.name,
     secondary: entry.username ? `@${entry.username}` : null,
     href: entry.username ? `/players/${encodeURIComponent(entry.username)}` : null,
+    avatarUrl: entry.image && entry.username
+      ? `/api/players/${encodeURIComponent(entry.username)}/avatar`
+      : null,
     total: entry.total,
     tournaments: entry.tournaments,
   }))

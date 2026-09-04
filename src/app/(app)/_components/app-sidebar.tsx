@@ -11,6 +11,7 @@ import {
   Users,
   X,
   Swords,
+  Trophy,
 } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
@@ -37,6 +38,164 @@ type UserInfo = {
 type AppSidebarProps = {
   user: UserInfo
   guild: GuildInfo | null
+}
+
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof User
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/perfil", label: "Perfil", icon: User },
+  { href: "/players", label: "Players", icon: Users },
+  { href: "/guildas", label: "Guildas", icon: Shield },
+  { href: "/torneios", label: "Torneios", icon: Swords },
+  { href: "/rankings", label: "Rankings", icon: Trophy },
+]
+
+function BrandLink({ showLabel }: { showLabel: boolean }) {
+  return (
+    <Link
+      href="/"
+      className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold tracking-tight"
+      aria-label="Cinnabares - ir para o início"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent ring-1 ring-accent/30">
+        <Flame className="size-4" aria-hidden="true" />
+      </span>
+      {showLabel && <span>Cinnabares</span>}
+    </Link>
+  )
+}
+
+function NavItemLink({ item, isActive, collapsed }: { item: NavItem; isActive: boolean; collapsed: boolean }) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        collapsed && "justify-center px-0",
+        isActive
+          ? "bg-accent/15 text-accent"
+          : "text-muted-foreground hover:bg-accent/5 hover:text-foreground"
+      )}
+      aria-current={isActive ? "page" : undefined}
+      title={item.label}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      {!collapsed && <span>{item.label}</span>}
+    </Link>
+  )
+}
+
+function GuildCard({ guild }: { guild: GuildInfo }) {
+  return (
+    <div className="mb-3 rounded-lg bg-accent/5 border border-accent/10 px-3 py-2">
+      <div className="flex items-center gap-2">
+        <div className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-md bg-accent/15 text-accent">
+          {guild.image ? (
+            <NextImage
+              src={`/api/guilds/${guild.id}/image?path=${encodeURIComponent(guild.image)}`}
+              alt=""
+              width={20}
+              height={20}
+              unoptimized
+              className="size-full object-cover"
+            />
+          ) : (
+            guild.name.slice(0, 1).toUpperCase()
+          )}
+        </div>
+        <span className="truncate text-xs font-medium text-accent">{guild.name}</span>
+      </div>
+      <p className="mt-0.5 text-xs text-muted-foreground">{guild.memberCount} membros</p>
+    </div>
+  )
+}
+
+function UserLink({ user, displayName, initial, collapsed }: { user: UserInfo; displayName: string; initial: string; collapsed: boolean }) {
+  return (
+    <Link
+      href="/perfil"
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/5",
+        collapsed && "justify-center px-0"
+      )}
+    >
+      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-accent/15 font-heading text-xs font-semibold text-accent">
+        {user.image ? (
+          <NextImage
+            src={`/api/profile/avatar?path=${encodeURIComponent(user.image)}`}
+            alt=""
+            width={32}
+            height={32}
+            unoptimized
+            className="size-full object-cover"
+          />
+        ) : (
+          initial
+        )}
+      </div>
+      {!collapsed && (
+        <div className="min-w-0">
+          <p className="truncate font-medium leading-tight">{user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">@{displayName}</p>
+        </div>
+      )}
+    </Link>
+  )
+}
+
+function SignOutButton({ collapsed, onSignOut }: { collapsed: boolean; onSignOut: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSignOut}
+      className={cn(
+        "mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+        collapsed && "justify-center px-0"
+      )}
+      aria-label="Sair da conta"
+    >
+      <LogOut className="size-5 shrink-0" aria-hidden="true" />
+      {!collapsed && <span>Sair</span>}
+    </button>
+  )
+}
+
+type SidebarNavProps = {
+  guild: GuildInfo | null
+  user: UserInfo
+  displayName: string
+  initial: string
+  collapsed: boolean
+  activeNavItem: NavItem | undefined
+  onSignOut: () => void
+}
+
+function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavItem, onSignOut }: SidebarNavProps) {
+  return (
+    <nav
+      aria-label="Navegação principal"
+      className="flex flex-1 flex-col"
+    >
+      <ul className="flex flex-1 flex-col gap-1 px-3 mt-4" role="list">
+        {NAV_ITEMS.map((item) => (
+          <li key={item.href}>
+            <NavItemLink item={item} isActive={activeNavItem?.href === item.href} collapsed={collapsed} />
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto border-t border-border/60 px-3 py-3">
+        {guild && !collapsed && <GuildCard guild={guild} />}
+        <UserLink user={user} displayName={displayName} initial={initial} collapsed={collapsed} />
+        <SignOutButton collapsed={collapsed} onSignOut={onSignOut} />
+      </div>
+    </nav>
+  )
 }
 
 export function AppSidebar({ user, guild }: AppSidebarProps) {
@@ -74,116 +233,24 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
   const displayName = user.username ?? user.name
   const initial = displayName.slice(0, 1).toUpperCase()
 
-  const navItems = [
-    { href: "/perfil", label: "Perfil", icon: User },
-    { href: "/players", label: "Players", icon: Users },
-    { href: "/guildas", label: "Guildas", icon: Shield },
-    { href: "/torneios", label: "Torneios", icon: Swords },
-  ]
-  const activeNavItem = navItems
+  const activeNavItem = NAV_ITEMS
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((first, second) => second.href.length - first.href.length)[0]
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-60"
 
   const sidebarContent = (
-    <nav
-      aria-label="Navegação principal"
-      className="flex flex-1 flex-col"
-    >
-      <ul className="flex flex-1 flex-col gap-1 px-3 mt-4" role="list">
-        {navItems.map((item) => {
-          const isActive = activeNavItem?.href === item.href
-          const Icon = item.icon
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  collapsed && "justify-center px-0",
-                  isActive
-                    ? "bg-accent/15 text-accent"
-                    : "text-muted-foreground hover:bg-accent/5 hover:text-foreground"
-                )}
-                aria-current={isActive ? "page" : undefined}
-                title={item.label}
-              >
-                <Icon className="size-5 shrink-0" aria-hidden="true" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-
-      <div className="mt-auto border-t border-border/60 px-3 py-3">
-        {guild && !collapsed && (
-          <div className="mb-3 rounded-lg bg-accent/5 border border-accent/10 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <div className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-md bg-accent/15 text-accent">
-                {guild.image ? (
-                  <NextImage
-                    src={`/api/guilds/${guild.id}/image?path=${encodeURIComponent(guild.image)}`}
-                    alt=""
-                    width={20}
-                    height={20}
-                    unoptimized
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  guild.name.slice(0, 1).toUpperCase()
-                )}
-              </div>
-              <span className="truncate text-xs font-medium text-accent">{guild.name}</span>
-            </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">{guild.memberCount} membros</p>
-          </div>
-        )}
-
-        <Link
-          href="/perfil"
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/5",
-            collapsed && "justify-center px-0"
-          )}
-        >
-          <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-accent/15 font-heading text-xs font-semibold text-accent">
-            {user.image ? (
-              <NextImage
-                src={`/api/profile/avatar?path=${encodeURIComponent(user.image)}`}
-                alt=""
-                width={32}
-                height={32}
-                unoptimized
-                className="size-full object-cover"
-              />
-            ) : (
-              initial
-            )}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="truncate font-medium leading-tight">{user.name}</p>
-              <p className="truncate text-xs text-muted-foreground">@{displayName}</p>
-            </div>
-          )}
-        </Link>
-
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className={cn(
-            "mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
-            collapsed && "justify-center px-0"
-          )}
-          aria-label="Sair da conta"
-        >
-          <LogOut className="size-5 shrink-0" aria-hidden="true" />
-          {!collapsed && <span>Sair</span>}
-        </button>
-      </div>
-    </nav>
+    <SidebarNav
+      guild={guild}
+      user={user}
+      displayName={displayName}
+      initial={initial}
+      collapsed={collapsed}
+      activeNavItem={activeNavItem}
+      onSignOut={() => {
+        void handleSignOut()
+      }}
+    />
   )
 
   return (
@@ -215,16 +282,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
         )}
       >
         <div className="flex items-center justify-between px-4 py-4">
-          <Link
-            href="/"
-            className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold tracking-tight"
-            aria-label="Cinnabares - ir para o início"
-          >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent ring-1 ring-accent/30">
-              <Flame className="size-4" aria-hidden="true" />
-            </span>
-            Cinnabares
-          </Link>
+          <BrandLink showLabel />
           <button
             type="button"
             onClick={closeMobile}
@@ -245,16 +303,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
         )}
       >
         <div className={cn("flex items-center gap-2 px-4 py-4", collapsed && "justify-center px-0")}>
-          <Link
-            href="/"
-            className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold tracking-tight"
-            aria-label="Cinnabares - ir para o início"
-          >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent ring-1 ring-accent/30">
-              <Flame className="size-4" aria-hidden="true" />
-            </span>
-            {!collapsed && <span>Cinnabares</span>}
-          </Link>
+          <BrandLink showLabel={!collapsed} />
         </div>
         {sidebarContent}
 

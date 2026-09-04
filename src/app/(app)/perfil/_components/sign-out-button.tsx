@@ -16,7 +16,13 @@ export function SignOutButton() {
   }
 
   return (
-    <Button type="button" variant="outline" onClick={handleSignOut}>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        void handleSignOut()
+      }}
+    >
       <LogOut aria-hidden="true" />
       <span className="hidden sm:inline">Sair</span>
     </Button>

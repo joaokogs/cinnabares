@@ -19,12 +19,109 @@ type AuthFormProps = {
   mode: "login" | "register"
 }
 
+type AuthCopy = {
+  title: string
+  description: string
+  submitLabel: string
+  switchPrompt: string
+  switchHref: "/login" | "/register"
+  switchLabel: string
+}
+
+const COPY: Record<"login" | "register", AuthCopy> = {
+  login: {
+    title: "Bem-vindo de volta",
+    description: "Acesse sua conta para continuar sua jornada.",
+    submitLabel: "Entrar",
+    switchPrompt: "Ainda não possui uma conta?",
+    switchHref: "/register",
+    switchLabel: "Criar conta",
+  },
+  register: {
+    title: "Entre para a guilda",
+    description: "Crie sua conta de player para acompanhar a guilda.",
+    submitLabel: "Criar conta",
+    switchPrompt: "Já possui uma conta?",
+    switchHref: "/login",
+    switchLabel: "Entrar",
+  },
+}
+
+type AuthFieldsProps = {
+  mode: "login" | "register"
+  username: string
+  email: string
+  identifier: string
+  onUsernameChange: (value: string) => void
+  onEmailChange: (value: string) => void
+  onIdentifierChange: (value: string) => void
+}
+
+function AuthFields({
+  mode,
+  username,
+  email,
+  identifier,
+  onUsernameChange,
+  onEmailChange,
+  onIdentifierChange,
+}: AuthFieldsProps) {
+  if (mode === "register") {
+    return (
+      <>
+        <label className="block space-y-2 text-sm font-medium" htmlFor="username">
+          Username
+          <input
+            id="username"
+            name="username"
+            autoComplete="username"
+            required
+            minLength={3}
+            value={username}
+            onChange={(event) => onUsernameChange(event.target.value)}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          />
+        </label>
+        <label className="block space-y-2 text-sm font-medium" htmlFor="email">
+          Email
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => onEmailChange(event.target.value)}
+            className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          />
+        </label>
+      </>
+    )
+  }
+
+  return (
+    <label className="block space-y-2 text-sm font-medium" htmlFor="identifier">
+      Email ou username
+      <input
+        id="identifier"
+        name="identifier"
+        autoComplete="username"
+        required
+        value={identifier}
+        onChange={(event) => onIdentifierChange(event.target.value)}
+        className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+      />
+    </label>
+  )
+}
+
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedRedirect = searchParams.get("redirect")
   const redirectTo = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") ? requestedRedirect : "/perfil"
   const isRegister = mode === "register"
+  const copy = COPY[mode]
   const [username, setUsername] = useState("")
   const [identifier, setIdentifier] = useState("")
   const [email, setEmail] = useState("")
@@ -66,60 +163,25 @@ export function AuthForm({ mode }: AuthFormProps) {
   return (
     <Card className="border-border/70 bg-card/90 shadow-2xl shadow-black/20 backdrop-blur">
       <CardHeader className="gap-2 pb-2">
-        <CardTitle className="text-2xl">
-          {isRegister ? "Entre para a guilda" : "Bem-vindo de volta"}
-        </CardTitle>
-        <CardDescription>
-          {isRegister
-            ? "Crie sua conta de player para acompanhar a guilda."
-            : "Acesse sua conta para continuar sua jornada."}
-        </CardDescription>
+        <CardTitle className="text-2xl">{copy.title}</CardTitle>
+        <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {isRegister ? (
-            <>
-              <label className="block space-y-2 text-sm font-medium" htmlFor="username">
-                Username
-                <input
-                  id="username"
-                  name="username"
-                  autoComplete="username"
-                  required
-                  minLength={3}
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                />
-              </label>
-              <label className="block space-y-2 text-sm font-medium" htmlFor="email">
-                Email
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                />
-              </label>
-            </>
-          ) : (
-            <label className="block space-y-2 text-sm font-medium" htmlFor="identifier">
-              Email ou username
-              <input
-                id="identifier"
-                name="identifier"
-                autoComplete="username"
-                required
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-              />
-            </label>
-          )}
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
+        >
+          <AuthFields
+            mode={mode}
+            username={username}
+            email={email}
+            identifier={identifier}
+            onUsernameChange={setUsername}
+            onEmailChange={setEmail}
+            onIdentifierChange={setIdentifier}
+          />
           <label className="block space-y-2 text-sm font-medium" htmlFor="password">
             Senha
             <input
@@ -140,16 +202,16 @@ export function AuthForm({ mode }: AuthFormProps) {
             </p>
           ) : null}
           <Button className="h-10 w-full" type="submit" disabled={isPending}>
-            {isPending ? "Aguarde..." : isRegister ? "Criar conta" : "Entrar"}
+            {isPending ? "Aguarde..." : copy.submitLabel}
           </Button>
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          {isRegister ? "Já possui uma conta?" : "Ainda não possui uma conta?"}{" "}
+          {copy.switchPrompt}{" "}
           <Link
-            href={isRegister ? "/login" : "/register"}
+            href={copy.switchHref}
             className="font-medium text-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
           >
-            {isRegister ? "Entrar" : "Criar conta"}
+            {copy.switchLabel}
           </Link>
         </p>
       </CardContent>

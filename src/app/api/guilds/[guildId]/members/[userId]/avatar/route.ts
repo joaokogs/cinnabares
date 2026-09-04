@@ -1,20 +1,13 @@
 import { get } from "@vercel/blob"
-import { and, eq } from "drizzle-orm"
 
-import { db } from "@/db"
-import { guildMember, user } from "@/db/schema"
+import { findMemberAvatar } from "@/lib/guilds/repository"
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ guildId: string; userId: string }> }
 ) {
   const { guildId, userId } = await params
-  const [member] = await db
-    .select({ image: user.image })
-    .from(guildMember)
-    .innerJoin(user, eq(user.id, guildMember.userId))
-    .where(and(eq(guildMember.guildId, guildId), eq(guildMember.userId, userId)))
-    .limit(1)
+  const member = await findMemberAvatar(guildId, userId)
 
   if (!member?.image) return new Response("Avatar não encontrado.", { status: 404 })
 

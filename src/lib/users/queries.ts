@@ -44,24 +44,27 @@ const publicUserFields = {
   image: user.image,
 }
 
-export async function searchPlayers({
-  query = "",
-  guildTag = null,
-  status = "all",
-  page = 1,
-}: PlayerSearchParams): Promise<PlayerSearchResponse> {
-  const trimmed = query.trim()
-
+const buildPlayerSearchWhere = ({
+  trimmed,
+  status,
+  guildTag,
+}: {
+  trimmed: string
+  status: PlayerStatus
+  guildTag: string | null
+}): ReturnType<typeof and> => {
   const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof ilike> | ReturnType<typeof or> | ReturnType<typeof sql>> = []
 
   if (trimmed) {
-    conditions.push(
-      or(
-        ilike(user.name, `%${escapeLike(trimmed)}%`),
-        ilike(user.username, `%${escapeLike(trimmed)}%`),
-        ilike(user.displayUsername, `%${escapeLike(trimmed)}%`)
-      )!
+    const nameMatch = or(
+      ilike(user.name, `%${escapeLike(trimmed)}%`),
+      ilike(user.username, `%${escapeLike(trimmed)}%`),
+      ilike(user.displayUsername, `%${escapeLike(trimmed)}%`)
     )
+
+    if (nameMatch) {
+      conditions.push(nameMatch)
+    }
   }
 
   if (status === "member") {
@@ -74,7 +77,18 @@ export async function searchPlayers({
     conditions.push(eq(guild.tag, guildTag))
   }
 
-  const where = conditions.length ? and(...conditions) : undefined
+  return conditions.length ? and(...conditions) : undefined
+}
+
+export async function searchPlayers({
+  query = "",
+  guildTag = null,
+  status = "all",
+  page = 1,
+}: PlayerSearchParams): Promise<PlayerSearchResponse> {
+  const trimmed = query.trim()
+
+  const where = buildPlayerSearchWhere({ trimmed, status, guildTag })
 
   const [totalRow] = await db
     .select({ value: sql<number>`cast(count(*) as int)` })

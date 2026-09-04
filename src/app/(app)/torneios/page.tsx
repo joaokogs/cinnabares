@@ -2,15 +2,13 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CalendarDays, ChevronRight, Plus, Swords, Users } from "lucide-react"
 import { headers } from "next/headers"
-import { eq } from "drizzle-orm"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { db } from "@/db"
-import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
 import { listTournaments } from "@/lib/tournaments/queries"
+import { getUserRole } from "@/lib/users/account"
 
 export const metadata: Metadata = { title: "Torneios" }
 export const dynamic = "force-dynamic"
@@ -19,8 +17,8 @@ const tierLabels = { overused: "OU", underused: "UU", neverused: "NU", doubles: 
 
 export default async function TournamentsPage() {
   const session = await auth.api.getSession({ headers: await headers() })
-  const [account] = session ? await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id)).limit(1) : []
-  const tournaments = await listTournaments(account?.role === "admin")
+  const role = session ? await getUserRole(session.user.id) : null
+  const tournaments = await listTournaments(role === "admin")
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background px-4 py-12 sm:px-6 lg:py-16">
@@ -32,7 +30,7 @@ export default async function TournamentsPage() {
             <h1 className="mt-2 font-heading text-4xl font-bold tracking-tight sm:text-5xl">Torneios</h1>
             <p className="mt-3 max-w-xl leading-7 text-muted-foreground">Encontre uma chave aberta e dispute seu próximo título.</p>
           </div>
-          {account?.role === "admin" && <Button asChild variant="outline"><Link href="/torneios/novo"><Plus aria-hidden="true" /> Criar torneio</Link></Button>}
+          {role === "admin" && <Button asChild variant="outline"><Link href="/torneios/novo"><Plus aria-hidden="true" /> Criar torneio</Link></Button>}
         </div>
 
         {tournaments.length ? (

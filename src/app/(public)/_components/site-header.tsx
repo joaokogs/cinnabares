@@ -31,12 +31,6 @@ export function SiteHeader() {
             Guias
           </Link>
           <Link
-            href="/rankings"
-            className="rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
-          >
-            Rankings
-          </Link>
-          <Link
             href="/login"
             className="rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
           >

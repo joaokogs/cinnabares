@@ -3,12 +3,10 @@ import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { ArrowLeft, AtSign, Mail, ShieldCheck } from "lucide-react"
-import { eq } from "drizzle-orm"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { db } from "@/db"
-import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { getUserProfile } from "@/lib/users/account"
 import { AvatarUploader } from "../_components/avatar-uploader"
 import { ProfileForm } from "../_components/profile-form"
 
@@ -21,11 +19,7 @@ export default async function EditProfilePage() {
 
   if (!session) redirect("/login")
 
-  const [player] = await db
-    .select({ name: user.name, username: user.username, email: user.email, image: user.image })
-    .from(user)
-    .where(eq(user.id, session.user.id))
-    .limit(1)
+  const player = await getUserProfile(session.user.id)
 
   if (!player) redirect("/login")
 

@@ -1,9 +1,7 @@
 import { get, put } from "@vercel/blob"
-import { eq } from "drizzle-orm"
 
-import { db } from "@/db"
-import { user } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { getUserImage, updateUserAvatar } from "@/lib/users/account"
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"])
@@ -20,13 +18,9 @@ export async function GET(request: Request) {
   }
 
   const pathname = new URL(request.url).searchParams.get("path")
-  const [player] = await db
-    .select({ image: user.image })
-    .from(user)
-    .where(eq(user.id, session.user.id))
-    .limit(1)
+  const image = await getUserImage(session.user.id)
 
-  if (!pathname || !player?.image || player.image !== pathname) {
+  if (!pathname || !image || image !== pathname) {
     return new Response("Não encontramos seu avatar.", { status: 404 })
   }
 
@@ -73,10 +67,7 @@ export async function POST(request: Request) {
     cacheControlMaxAge: 60 * 60 * 24 * 30,
   })
 
-  await db
-    .update(user)
-    .set({ image: blob.pathname, updatedAt: new Date() })
-    .where(eq(user.id, session.user.id))
+  await updateUserAvatar(session.user.id, blob.pathname)
 
   return Response.json({ url: avatarProxyUrl(blob.pathname) })
 }

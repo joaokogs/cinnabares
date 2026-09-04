@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm"
 import { randomUUID } from "node:crypto"
 
-import { db } from "@/db"
-import { guild, guildInvite } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { findGuildFounder, findGuildTag, insertGuildInvite } from "@/lib/guilds/repository"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 
@@ -15,11 +13,7 @@ export async function POST(
   if (!session) return Response.json({ error: "Sua sessão expirou. Entre novamente para continuar." }, { status: 401 })
 
   const { guildId } = await params
-  const [currentGuild] = await db
-    .select({ founderId: guild.founderId })
-    .from(guild)
-    .where(eq(guild.id, guildId))
-    .limit(1)
+  const currentGuild = await findGuildFounder(guildId)
 
   if (!currentGuild) return Response.json({ error: "Não encontramos essa guilda." }, { status: 404 })
   if (currentGuild.founderId !== session.user.id) {
@@ -32,19 +26,17 @@ export async function POST(
   }
 
   const token = randomUUID()
-  const [invite] = await db
-    .insert(guildInvite)
-    .values({
-      id: randomUUID(),
-      guildId,
-      createdBy: session.user.id,
-      token,
-      maxUses: body.maxUses ?? null,
-      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-    })
-    .returning({ token: guildInvite.token })
+  const invite = await insertGuildInvite({
+    id: randomUUID(),
+    guildId,
+    createdBy: session.user.id,
+    token,
+    maxUses: body.maxUses ?? null,
+    expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+  })
 
-  const url = `${SITE_URL}/guildas/${encodeURIComponent((await db.select({ tag: guild.tag }).from(guild).where(eq(guild.id, guildId)).limit(1))[0].tag)}/join?token=${invite.token}`
+  const guildData = await findGuildTag(guildId)
+  const url = `${SITE_URL}/guildas/${encodeURIComponent(guildData?.tag ?? "")}/join?token=${invite.token}`
 
   return Response.json({ token: invite.token, url })
 }

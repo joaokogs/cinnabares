@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { PERIODS, TIERS, TIER_LABELS, type Tier } from "@/lib/tournaments/tiers"
+import { PERIODS, TIERS, TIER_LABELS } from "@/lib/tournaments/tiers"
 
 export { PERIODS, TIERS, TIER_LABELS }
 export type { PeriodValue, Tier } from "@/lib/tournaments/tiers"
