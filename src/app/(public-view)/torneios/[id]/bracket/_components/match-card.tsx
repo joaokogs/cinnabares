@@ -4,18 +4,16 @@ import { Undo2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { SlotName } from "./slot-name"
-import type { Match, Visibility } from "./types"
+import type { Match } from "./types"
 
 function MatchCardHeader({
   match,
-  visibility,
   adminVisible,
   busy,
   reverting,
   onRevert,
 }: {
   match: Match
-  visibility: Visibility
   adminVisible: boolean | undefined
   busy: boolean | undefined
   reverting: boolean | undefined
@@ -35,8 +33,6 @@ function MatchCardHeader({
       <SlotName
         name={match.slot1Name}
         guildTag={match.slot1GuildTag}
-        roster={match.slot1Roster}
-        visibility={visibility}
         isWinner={isWinner}
         isComplete={isComplete}
       />
@@ -89,7 +85,7 @@ function MatchMiddleRow({ match, showMatchup }: { match: Match; showMatchup: boo
   return null
 }
 
-function MatchCardFooter({ match, visibility }: { match: Match; visibility: Visibility }) {
+function MatchCardFooter({ match }: { match: Match }) {
   const isComplete = match.status === "completed"
   const isWinner = isComplete && match.winnerRegistrationId === match.slot2RegistrationId
   const showBye = Boolean(match.slot1RegistrationId) && !match.slot2RegistrationId
@@ -104,8 +100,6 @@ function MatchCardFooter({ match, visibility }: { match: Match; visibility: Visi
       <SlotName
         name={match.slot2Name}
         guildTag={match.slot2GuildTag}
-        roster={match.slot2Roster}
-        visibility={visibility}
         isWinner={isWinner}
         isComplete={isComplete}
       />
@@ -131,7 +125,7 @@ function ResolveActions({
   const slot2Id = match.slot2RegistrationId
   const isComplete = match.status === "completed"
 
-  if (!adminVisible || isComplete || !slot1Id || !slot2Id) return null
+  if (!adminVisible || isComplete || !slot1Id || !slot2Id || match.battles.length >= 3) return null
 
   return (
     <div className="flex border-t border-border/50">
@@ -189,7 +183,6 @@ function MatchupOverlay({
 export function MatchCard({
   match,
   adminMode,
-  visibility,
   finished,
   onResolve,
   onRevert,
@@ -199,7 +192,6 @@ export function MatchCard({
 }: {
   match: Match
   adminMode?: boolean
-  visibility: Visibility
   finished?: boolean
   onResolve?: (matchId: string, winnerRegistrationId: string) => void
   onRevert?: (matchId: string) => void
@@ -218,14 +210,13 @@ export function MatchCard({
     <div className="relative w-56 shrink-0 rounded-lg border border-border bg-background/60 p-0 text-sm">
       <MatchCardHeader
         match={match}
-        visibility={visibility}
         adminVisible={adminVisible}
         busy={busy}
         reverting={reverting}
         onRevert={onRevert}
       />
       <MatchMiddleRow match={match} showMatchup={showMatchup} />
-      <MatchCardFooter match={match} visibility={visibility} />
+      <MatchCardFooter match={match} />
       <ResolveActions
         match={match}
         adminVisible={adminVisible}

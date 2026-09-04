@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import { bracket, bracketActionLog, bracketMatch, guild, guildMember, tournament, tournamentRegistration } from "@/db/schema"
-import type { TournamentRosterEntry } from "@/db/schema"
+import type { MatchBattle, TournamentRosterEntry } from "@/db/schema"
 import type { TournamentInput } from "@/lib/tournaments/input"
 
 export type TournamentStatus = "draft" | "open" | "closed" | "active" | "finished"
@@ -103,6 +103,7 @@ export type BracketMatchRow = {
   winnerRegistrationId: string | null
   score1: number
   score2: number
+  battles: MatchBattle[]
 }
 
 export function insertBracketBatch(bracketId: string, tournamentId: string, matchRows: BracketMatchRow[]) {
@@ -115,11 +116,11 @@ export function insertBracketBatch(bracketId: string, tournamentId: string, matc
 
 export async function updateCompletedMatch(
   matchId: string,
-  data: { winnerRegistrationId: string; score1: number; score2: number },
+  data: { winnerRegistrationId: string; score1: number; score2: number; battles?: MatchBattle[] },
 ): Promise<{ id: string } | null> {
   const [updated] = await db
     .update(bracketMatch)
-    .set({ winnerRegistrationId: data.winnerRegistrationId, status: "completed", score1: data.score1, score2: data.score2, updatedAt: new Date() })
+    .set({ winnerRegistrationId: data.winnerRegistrationId, status: "completed", score1: data.score1, score2: data.score2, ...(data.battles ? { battles: data.battles } : {}), updatedAt: new Date() })
     .where(and(eq(bracketMatch.id, matchId), eq(bracketMatch.status, "pending")))
     .returning({ id: bracketMatch.id })
   return updated ?? null
@@ -146,7 +147,7 @@ export type BracketActionLogEntry = {
   id: string
   bracketId: string
   matchId: string
-  action: "resolve" | "revert"
+  action: "resolve" | "revert" | "order"
   winnerRegistrationId: string | null
   createdBy: string
 }
@@ -155,16 +156,34 @@ export function insertActionLog(entry: BracketActionLogEntry) {
   return db.insert(bracketActionLog).values(entry)
 }
 
-export async function updateMatchSlot(matchId: string, slot: "slot1" | "slot2", registrationId: string | null) {
+export async function updateMatchSlot(matchId: string, slot: "slot1" | "slot2", registrationId: string | null, expectedStatus: "pending" | "completed" = "pending") {
   const update = slot === "slot1"
-    ? { slot1RegistrationId: registrationId, updatedAt: new Date() }
-    : { slot2RegistrationId: registrationId, updatedAt: new Date() }
-  await db.update(bracketMatch).set(update).where(eq(bracketMatch.id, matchId))
+    ? { slot1RegistrationId: registrationId, battles: [], updatedAt: new Date() }
+    : { slot2RegistrationId: registrationId, battles: [], updatedAt: new Date() }
+  await db.update(bracketMatch).set(update).where(and(eq(bracketMatch.id, matchId), eq(bracketMatch.status, expectedStatus)))
 }
 
 export async function revertCompletedMatch(matchId: string) {
   await db
     .update(bracketMatch)
-    .set({ winnerRegistrationId: null, status: "pending", score1: 0, score2: 0, updatedAt: new Date() })
+    .set({ winnerRegistrationId: null, status: "pending", score1: 0, score2: 0, battles: [], updatedAt: new Date() })
     .where(eq(bracketMatch.id, matchId))
+}
+
+export async function updateMatchBattles(matchId: string, battles: MatchBattle[]) {
+  const [updated] = await db
+    .update(bracketMatch)
+    .set({ battles, updatedAt: new Date() })
+    .where(and(eq(bracketMatch.id, matchId), eq(bracketMatch.status, "pending")))
+    .returning({ id: bracketMatch.id })
+  return updated ?? null
+}
+
+export async function updateMatchBattleState(matchId: string, data: { status: "pending" | "completed"; winnerRegistrationId: string | null; score1: number; score2: number; battles: MatchBattle[] }, expectedStatus: "pending" | "completed") {
+  const [updated] = await db
+    .update(bracketMatch)
+    .set({ status: data.status, winnerRegistrationId: data.winnerRegistrationId, score1: data.score1, score2: data.score2, battles: data.battles, updatedAt: new Date() })
+    .where(and(eq(bracketMatch.id, matchId), eq(bracketMatch.status, expectedStatus)))
+    .returning({ id: bracketMatch.id })
+  return updated ?? null
 }

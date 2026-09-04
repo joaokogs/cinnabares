@@ -9,7 +9,7 @@ import { BracketHistorySidebar } from "./bracket-history-sidebar"
 import { ConfirmPanel } from "./confirm-panel"
 import { MatchCard } from "./match-card"
 import { MatchupDialog } from "./matchup-dialog"
-import type { ConfirmAction, Match, Visibility } from "./types"
+import type { ConfirmAction, Match } from "./types"
 import { useBracketData } from "./use-bracket"
 
 type BracketViewProps = {
@@ -70,7 +70,6 @@ function PhaseColumn({
   phase,
   matches,
   totalPhases,
-  visibility,
   adminMode,
   finished,
   onResolve,
@@ -82,7 +81,6 @@ function PhaseColumn({
   phase: number
   matches: Match[]
   totalPhases: number
-  visibility: Visibility
   adminMode?: boolean
   finished?: boolean
   onResolve?: (matchId: string, winnerRegistrationId: string) => void
@@ -103,7 +101,6 @@ function PhaseColumn({
             key={match.id}
             match={match}
             adminMode={adminMode}
-            visibility={visibility}
             finished={finished}
             onResolve={onResolve}
             onRevert={onRevert}
@@ -177,6 +174,8 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
     revertingId,
     executeResolve,
     executeRevert,
+    savingBattlesId,
+    executeSaveBattles,
   } = useBracketData(tournamentId)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
@@ -275,7 +274,6 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
               phase={phase}
               matches={matches}
               totalPhases={data.totalPhases}
-              visibility={data.tournament.visibility}
               adminMode={adminMode}
               finished={finished}
               onResolve={internalResolve ? handleInternalResolve : onResolve}
@@ -293,8 +291,11 @@ export function BracketView({ tournamentId, adminMode, onResolve, onRevert, reso
       <MatchupDialog
         match={selectedMatch}
         visibility={data.tournament.visibility}
+        viewerIsAdmin={Boolean(data.viewerIsAdmin)}
         open={Boolean(selectedMatch)}
         onOpenChange={(open) => { if (!open) setSelectedMatchId(null) }}
+        onSaveBattles={adminMode ? executeSaveBattles : undefined}
+        savingBattles={savingBattlesId === selectedMatchId}
       />
     </div>
   )

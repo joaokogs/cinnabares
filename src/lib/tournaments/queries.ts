@@ -44,6 +44,14 @@ export async function getTournamentRegistration(tournamentId: string, userId: st
   return result ?? null
 }
 
+export async function getTournamentRegistrationsByIds(registrationIds: string[]) {
+  if (registrationIds.length === 0) return []
+  return db
+    .select({ id: tournamentRegistration.id, roster: tournamentRegistration.roster })
+    .from(tournamentRegistration)
+    .where(inArray(tournamentRegistration.id, registrationIds))
+}
+
 export async function getUserTournamentRegistration(tournamentId: string, userId: string) {
   const [result] = await db
     .select({ registration: tournamentRegistration })
@@ -135,6 +143,7 @@ export async function getBracketMatchesWithRegistrations(bracketId: string) {
       slot1RegistrationId: bracketMatch.slot1RegistrationId,
       slot2RegistrationId: bracketMatch.slot2RegistrationId,
       winnerRegistrationId: bracketMatch.winnerRegistrationId,
+      battles: bracketMatch.battles,
       score1: bracketMatch.score1,
       score2: bracketMatch.score2,
       status: bracketMatch.status,

@@ -1,0 +1,1 @@
+ALTER TABLE "bracket_match" ADD COLUMN "battles" jsonb DEFAULT '[]'::jsonb NOT NULL;

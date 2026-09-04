@@ -1,4 +1,5 @@
 import type { VisibleRosterEntry } from "@/lib/tournaments/roster"
+import type { MatchBattle } from "@/db/schema"
 
 export type Visibility = "blind" | "partial" | "total"
 
@@ -19,6 +20,7 @@ export type Match = {
   slot2GuildTag: string | null
   slot2Roster: VisibleRosterEntry[]
   winnerName: string | null
+  battles: MatchBattle[]
 }
 
 export type BracketData = {
@@ -26,6 +28,7 @@ export type BracketData = {
   totalPhases: number
   matches: Match[]
   champion: { registrationId: string | null; name: string | null } | null
+  viewerIsAdmin?: boolean
 }
 
 export type ConfirmAction = {

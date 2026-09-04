@@ -19,6 +19,7 @@ function buildMatchRows(bracketId: string, registrationIds: string[]): BracketMa
     slot2RegistrationId: match.slot2RegistrationId,
     status: "pending",
     winnerRegistrationId: null,
+    battles: [],
     score1: 0,
     score2: 0,
   }))

@@ -27,6 +27,7 @@ const TEAM_SIZE = 5
 
 const FINISHED_NAME = "XT Guilda Demo Finalizado 3-1"
 const OPEN_NAME = "XT Guilda Demo Aberto"
+const ACTIVE_NAME = "XT Guilda Demo Em Andamento"
 
 const TEAMS: TournamentPokemon[][] = [
   [
@@ -243,6 +244,76 @@ async function main() {
     console.log(`  Página: /torneios/${tournamentId}`)
   }
 
+  const seedActive = async (creatorId: string, alfaGuildId: string, betaGuildId: string, alfaRoster: TournamentRosterEntry[], betaRoster: TournamentRosterEntry[]) => {
+    const existing = await db.select({ id: tournament.id }).from(tournament).where(eq(tournament.name, ACTIVE_NAME)).limit(1)
+    if (existing[0]) {
+      console.log(`Torneio "${ACTIVE_NAME}" já existe (${existing[0].id}). Nada a fazer.`)
+      return
+    }
+
+    const tournamentId = randomUUID()
+    const alfaRegistrationId = randomUUID()
+    const betaRegistrationId = randomUUID()
+    const bracketId = randomUUID()
+    const matchId = randomUUID()
+
+    await db.batch([
+      db.insert(tournament).values({
+        id: tournamentId,
+        name: ACTIVE_NAME,
+        description: "Torneio demo em andamento para testar a administração da ordem de batalha.",
+        format: "guild",
+        status: "active",
+        scheduledDate: "2026-09-10",
+        scheduledTime: "19:00",
+        location: "Sala Guilds — Pokémon Showdown",
+        reward: "Título de campeão demo",
+        createdBy: creatorId,
+        ...tournamentInput,
+      }),
+      db.insert(tournamentRegistration).values([
+        {
+          id: alfaRegistrationId,
+          tournamentId,
+          userId: null,
+          guildId: alfaGuildId,
+          status: "approved",
+          roster: alfaRoster,
+          reviewedBy: creatorId,
+          reviewedAt: new Date(),
+        },
+        {
+          id: betaRegistrationId,
+          tournamentId,
+          userId: null,
+          guildId: betaGuildId,
+          status: "approved",
+          roster: betaRoster,
+          reviewedBy: creatorId,
+          reviewedAt: new Date(),
+        },
+      ]),
+      db.insert(bracket).values({ id: bracketId, tournamentId }),
+      db.insert(bracketMatch).values({
+        id: matchId,
+        bracketId,
+        phase: 0,
+        position: 0,
+        slot1RegistrationId: alfaRegistrationId,
+        slot2RegistrationId: betaRegistrationId,
+        winnerRegistrationId: null,
+        score1: 0,
+        score2: 0,
+        status: "pending",
+      }),
+    ])
+
+    console.log(`✓ Torneio em andamento criado: ${ACTIVE_NAME}`)
+    console.log(`  ID: ${tournamentId}`)
+    console.log(`  Página: /torneios/${tournamentId}`)
+    console.log(`  Chave: /torneios/${tournamentId}/bracket`)
+  }
+
   const alfaGuild = await findGuild(GUILD_ALFA.tag, GUILD_ALFA.name)
   if (!alfaGuild) fail(`Guilda "${GUILD_ALFA.tag}" (fallback "${GUILD_ALFA.name}") não encontrada no banco.`)
   const betaGuild = await findGuild(GUILD_BETA.tag, GUILD_BETA.name)
@@ -258,6 +329,7 @@ async function main() {
 
   await seedFinished(creator.id, alfaGuild.id, betaGuild.id, alfaRoster, betaRoster)
   await seedOpen(creator.id)
+  await seedActive(creator.id, alfaGuild.id, betaGuild.id, alfaRoster, betaRoster)
 
   console.log("\nSeed de torneios demo concluído.")
   process.exit(0)

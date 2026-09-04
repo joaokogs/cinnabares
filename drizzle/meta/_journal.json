@@ -78,6 +78,13 @@
       "when": 1788460327724,
       "tag": "0010_lazy_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788541894049,
+      "tag": "0011_secret_medusa",
+      "breakpoints": true
     }
   ]
 }

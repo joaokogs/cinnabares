@@ -50,6 +50,18 @@ function formatWinnerName(entry: ActionLogEntry) {
   return entry.winnerName ?? entry.winnerUsername ?? "Player"
 }
 
+function ActionBadge({ action }: { action: string }) {
+  if (action === "resolve") return <Badge variant="default" className="shrink-0">Resolveu</Badge>
+  if (action === "order") return <Badge variant="secondary" className="shrink-0">Ordem</Badge>
+  return <Badge variant="destructive" className="shrink-0 gap-1"><Undo2 className="size-3" aria-hidden="true" /> Desfez</Badge>
+}
+
+function ActionDescription({ entry }: { entry: ActionLogEntry }) {
+  if (entry.action === "resolve") return <>{formatWinnerName(entry)} venceu</>
+  if (entry.action === "order") return <>Ordem de batalha atualizada</>
+  return <>Resultado removido: {formatSlotName(entry, "1")} vs {formatSlotName(entry, "2")}</>
+}
+
 export function BracketHistorySidebar({ tournamentId, totalPhases }: BracketHistorySidebarProps) {
   const [history, setHistory] = useState<ActionLogEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -171,23 +183,14 @@ export function BracketHistorySidebar({ tournamentId, totalPhases }: BracketHist
                   {history.map((entry) => (
                     <div key={entry.id} className="flex items-start justify-between gap-3 py-1.5 text-xs">
                       <div className="flex items-center gap-2">
-                        {entry.action === "resolve" ? (
-                          <Badge variant="default" className="shrink-0">Resolveu</Badge>
-                        ) : (
-                          <Badge variant="destructive" className="shrink-0 gap-1">
-                            <Undo2 className="size-3" aria-hidden="true" /> Desfez
-                          </Badge>
-                        )}
+                        <ActionBadge action={entry.action} />
                         <span className="text-muted-foreground">
                           {getPhaseLabel(entry.matchPhase, totalPhases)} #{entry.matchPosition + 1}
                         </span>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">
-                          {entry.action === "resolve"
-                            ? <>{formatWinnerName(entry)} venceu</>
-                            : <>Resultado removido: {formatSlotName(entry, "1")} vs {formatSlotName(entry, "2")}</>
-                          }
+                          <ActionDescription entry={entry} />
                         </p>
                         <p className="text-muted-foreground">
                           {entry.createdByName} · {new Date(entry.createdAt).toLocaleString("pt-BR")}

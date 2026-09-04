@@ -23,6 +23,9 @@ export async function GET(request: Request, { params }: RouteProps) {
     return Response.json({ error: "Somente inscritos aprovados podem ver a chave do torneio." }, { status: 403 })
   }
 
+  const admin = await getAdminSession(request.headers)
+  const viewerIsAdmin = Boolean(admin.session)
+
   const currentBracket = await getBracketByTournamentId(id)
   if (!currentBracket) return Response.json({ error: "A chave ainda não foi iniciada." }, { status: 404 })
 
@@ -42,9 +45,11 @@ export async function GET(request: Request, { params }: RouteProps) {
     totalPhases,
     matches: matches.map((m) => ({
       ...m,
-      slot1Roster: getVisibleRoster(safeRoster(m.slot1Roster), currentTournament.visibility, users),
-      slot2Roster: getVisibleRoster(safeRoster(m.slot2Roster), currentTournament.visibility, users),
+      battles: viewerIsAdmin || currentTournament.visibility !== "blind" ? m.battles : [],
+      slot1Roster: viewerIsAdmin ? getVisibleRoster(safeRoster(m.slot1Roster), "total", users) : getVisibleRoster(safeRoster(m.slot1Roster), currentTournament.visibility, users),
+      slot2Roster: viewerIsAdmin ? getVisibleRoster(safeRoster(m.slot2Roster), "total", users) : getVisibleRoster(safeRoster(m.slot2Roster), currentTournament.visibility, users),
     })),
+    viewerIsAdmin,
     champion: champion ? { registrationId: champion.winnerRegistrationId, name: champion.winnerName } : null,
   })
 }
