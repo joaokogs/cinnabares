@@ -319,6 +319,28 @@
   background: var(--card);
 }
 
+.build-number::-webkit-inner-spin-button,
+.build-number::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.build-number {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[aria-label$=" IV"]::-webkit-inner-spin-button,
+input[aria-label$=" IV"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[aria-label$=" IV"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
 .mask-fade-x {
   mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);

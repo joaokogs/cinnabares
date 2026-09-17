@@ -6,6 +6,7 @@ import { Check, ChevronDown, LoaderCircle, Search, Trash2, X } from "lucide-reac
 
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { TypeIcon as PokemonTypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokemonBuildData, type BuildStat } from "@/hooks/use-pokemon-build-data"
 import type { NamedOption, PokeOption } from "@/hooks/use-pokeapi-data"
 import { calculateBuildStat, maxBuildStat, natureEffect, NATURES, STAT_ORDER, TYPE_COLORS } from "@/lib/pokemon-build"
@@ -53,15 +54,8 @@ function titleCase(name: string) {
   return name.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")
 }
 
-const TYPE_ICON_IDS: Record<string, number> = {
-  normal: 1, fighting: 2, flying: 3, poison: 4, ground: 5, rock: 6, bug: 7,
-  ghost: 8, steel: 9, fire: 10, water: 11, grass: 12, electric: 13,
-  psychic: 14, ice: 15, dragon: 16, dark: 17, fairy: 18,
-}
-
 function MoveTypeIcon({ type }: { type: string }) {
-  const typeId = TYPE_ICON_IDS[type] ?? TYPE_ICON_IDS.normal
-  return <span aria-label={`${type} type`} className="size-[22px] shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-ix/scarlet-violet/${typeId}.png)` }} />
+  return <PokemonTypeIcon type={type} size={22} className="shrink-0" />
 }
 
 function MoveCategoryBadge({ category }: { category: string }) {
