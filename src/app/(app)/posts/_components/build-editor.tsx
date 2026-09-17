@@ -95,23 +95,33 @@ function MoveCategoryBadge({ category }: { category: string }) {
   return <span className={cn("inline-flex items-center px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-none", styles[key])}>{labels[key]}</span>
 }
 
+function loadMoveInfo(name: string) {
+  if (!name) return Promise.resolve<MoveInfo | null>(null)
+  const cached = moveInfoCache.get(name)
+  if (cached) return Promise.resolve(cached)
+  const pending = moveInfoPromiseCache.get(name)
+  if (pending) return pending
+  const request = fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
+    .then((response) => {
+      if (!response.ok) throw new Error("Move data unavailable")
+      return response.json() as Promise<{ name: string; type: { name: string }; damage_class: { name: string }; power: number | null; pp: number | null }>
+    })
+    .then((move) => {
+      const nextData = { name: move.name, type: move.type.name, category: move.damage_class.name, power: move.power, pp: move.pp, ppMax: move.pp === null ? null : move.pp + Math.ceil(move.pp / 5) * 3 }
+      moveInfoCache.set(name, nextData)
+      return nextData
+    })
+    .catch(() => null)
+  moveInfoPromiseCache.set(name, request)
+  return request
+}
+
 function useMoveInfo(name: string) {
   const [data, setData] = useState<MoveInfo | null>(() => moveInfoCache.get(name) ?? null)
   useEffect(() => {
     if (!name || moveInfoCache.has(name)) return
     let active = true
-    const request = moveInfoPromiseCache.get(name) ?? fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
-      .then((response) => {
-        if (!response.ok) throw new Error("Move data unavailable")
-        return response.json() as Promise<{ name: string; type: { name: string }; damage_class: { name: string }; power: number | null; pp: number | null }>
-      })
-      .then((move) => {
-        const nextData = { name: move.name, type: move.type.name, category: move.damage_class.name, power: move.power, pp: move.pp, ppMax: move.pp === null ? null : move.pp + Math.ceil(move.pp / 5) * 3 }
-        moveInfoCache.set(name, nextData)
-        return nextData
-      })
-      .catch(() => null)
-    moveInfoPromiseCache.set(name, request)
+    const request = loadMoveInfo(name)
     request.then((nextData) => { if (active && nextData) setData(nextData) })
     return () => { active = false }
   }, [name])
@@ -182,7 +192,11 @@ function MoveSlot({ name, onClick, onClear }: { name: string; onClick: () => voi
 
 function MovePickerOption({ name, selected, onSelect }: { name: string; selected: boolean; onSelect: () => void }) {
   const info = useMoveInfo(name)
-  return <button type="button" onClick={onSelect} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(name, info)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
+  async function handleSelect() {
+    if (!moveInfoCache.has(name)) await loadMoveInfo(name)
+    onSelect()
+  }
+  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(name, info)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
 }
 
 function MovesEditor({ build, availableMoves, onChange }: { build: BuildDraft; availableMoves: string[]; onChange: (build: BuildDraft) => void }) {
