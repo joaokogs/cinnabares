@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto"
 
 import { db } from "@/db"
 import { post, postBookmark, postComment, postLike, postPokemon, postRepost, user } from "@/db/schema"
-import type { PostFeedItem, PostInput } from "./types"
+import type { PostComment, PostFeedItem, PostInput } from "./types"
 
 const PAGE_SIZE = 20
 
@@ -48,6 +48,7 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
       postId: postPokemon.postId,
       slot: postPokemon.slot,
       name: postPokemon.name,
+      description: postPokemon.description,
       item: postPokemon.item,
       ability: postPokemon.ability,
       nature: postPokemon.nature,
@@ -59,6 +60,7 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
       id: postComment.id,
       postId: postComment.postId,
       body: postComment.body,
+      parentId: postComment.parentId,
       createdAt: postComment.createdAt,
       authorId: user.id,
       authorName: user.name,
@@ -80,7 +82,7 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
   const commentsByPost = new Map<string, typeof commentRows>()
   for (const comment of commentRows) {
     const items = commentsByPost.get(comment.postId) ?? []
-    if (items.length < 3) items.push(comment)
+    items.push(comment)
     commentsByPost.set(comment.postId, items)
   }
 
@@ -100,6 +102,7 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
       id: item.id,
       slot: item.slot,
       name: item.name,
+      description: item.description,
       item: item.item,
       ability: item.ability,
       nature: item.nature,
@@ -107,18 +110,7 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
       evs: item.evs,
       moves: item.moves,
     })),
-    comments: (commentsByPost.get(row.id) ?? []).map((comment) => ({
-      id: comment.id,
-      body: comment.body,
-      createdAt: serializeDate(comment.createdAt),
-      author: {
-        id: comment.authorId,
-        name: comment.authorName,
-        username: comment.authorUsername,
-        image: comment.authorImage,
-        avatarUrl: avatarUrl(comment.authorUsername, comment.authorImage),
-      },
-    })),
+    comments: buildCommentTree(commentsByPost.get(row.id) ?? []),
     counts: {
       likes: Number(row.likes),
       comments: Number(row.comments),
@@ -148,6 +140,7 @@ export async function createPost(authorId: string, input: PostInput) {
       postId: id,
       slot: index,
       name: pokemon.name,
+      description: pokemon.description ?? "",
       item: pokemon.item ?? "",
       ability: pokemon.ability ?? "",
       nature: pokemon.nature ?? "",
@@ -181,11 +174,52 @@ export async function togglePostAction(postId: string, userId: string, action: P
   return true
 }
 
-export async function createPostComment(postId: string, userId: string, body: string) {
-  await db.insert(postComment).values({ id: randomUUID(), postId, userId, body })
+export async function createPostComment(postId: string, userId: string, body: string, parentId?: string) {
+  await db.insert(postComment).values({ id: randomUUID(), postId, userId, body, parentId: parentId ?? null })
+}
+
+function buildCommentTree(comments: Array<{
+  id: string
+  postId: string
+  parentId: string | null
+  body: string
+  createdAt: Date
+  authorId: string
+  authorName: string
+  authorUsername: string | null
+  authorImage: string | null
+}>) {
+  const byParent = new Map<string | null, typeof comments>()
+  for (const comment of comments) {
+    const children = byParent.get(comment.parentId) ?? []
+    children.push(comment)
+    byParent.set(comment.parentId, children)
+  }
+  function mapComments(parentId: string | null): PostComment[] {
+    return (byParent.get(parentId) ?? []).slice(0, parentId ? 10 : 3).map((comment) => ({
+      id: comment.id,
+      parentId: comment.parentId,
+      body: comment.body,
+      createdAt: serializeDate(comment.createdAt),
+      author: {
+        id: comment.authorId,
+        name: comment.authorName,
+        username: comment.authorUsername,
+        image: comment.authorImage,
+        avatarUrl: avatarUrl(comment.authorUsername, comment.authorImage),
+      },
+      replies: mapComments(comment.id),
+    }))
+  }
+  return mapComments(null)
 }
 
 export async function postExists(postId: string) {
   const [row] = await db.select({ id: post.id }).from(post).where(eq(post.id, postId)).limit(1)
+  return Boolean(row)
+}
+
+export async function postCommentExists(postId: string, commentId: string) {
+  const [row] = await db.select({ id: postComment.id }).from(postComment).where(and(eq(postComment.id, commentId), eq(postComment.postId, postId))).limit(1)
   return Boolean(row)
 }

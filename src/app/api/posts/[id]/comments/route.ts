@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { createPostComment, postExists } from "@/lib/posts/queries"
+import { createPostComment, postCommentExists, postExists } from "@/lib/posts/queries"
 
 export async function POST(
   request: Request,
@@ -11,9 +11,9 @@ export async function POST(
   const { id } = await params
   if (!await postExists(id)) return Response.json({ error: "Esse post não existe mais." }, { status: 404 })
 
-  let body: { body?: string }
+  let body: { body?: string; parentId?: string }
   try {
-    body = await request.json() as { body?: string }
+    body = await request.json() as { body?: string; parentId?: string }
   } catch {
     return Response.json({ error: "Comentário inválido." }, { status: 400 })
   }
@@ -23,6 +23,11 @@ export async function POST(
     return Response.json({ error: "O comentário deve ter entre 1 e 1.000 caracteres." }, { status: 400 })
   }
 
-  await createPostComment(id, session.user.id, comment)
+  const parentId = String(body.parentId ?? "").trim()
+  if (parentId && !await postCommentExists(id, parentId)) {
+    return Response.json({ error: "O comentário respondido não existe neste post." }, { status: 400 })
+  }
+
+  await createPostComment(id, session.user.id, comment, parentId || undefined)
   return Response.json({ ok: true }, { status: 201 })
 }

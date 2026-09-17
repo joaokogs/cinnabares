@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   MessageCircle,
   Plus,
+  Reply,
   Repeat2,
   Send,
   Trash2,
@@ -35,6 +36,7 @@ const STAT_NAMES = [
 
 type BuildDraft = {
   name: string
+  description: string
   item: string
   ability: string
   nature: string
@@ -54,6 +56,7 @@ type BuildEditorOptions = {
 function emptyBuild(): BuildDraft {
   return {
     name: "",
+    description: "",
     item: "",
     ability: "",
     nature: "",
@@ -122,6 +125,7 @@ function BuildMoveBadge({ move }: { move: string }) {
   return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold">{formatName(move)}</span></div>
 }
 
+// eslint-disable-next-line complexity
 function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options: PokeOption[] }) {
   const selected = options.find((option) => option.name === pokemon.name)
   const [meta, setMeta] = useState<DisplayPokemonMeta | null>(() => displayPokemonCache.get(pokemon.name) ?? null)
@@ -154,14 +158,33 @@ function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options:
           <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Item</p><div className="flex items-center gap-2 font-semibold">{pokemon.item ? <Image src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(pokemon.item)}.png`} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : null}<span className="truncate">{pokemon.item ? formatName(pokemon.item) : "Sem item"}</span></div></div>
           <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ability</p><p className="truncate font-semibold">{pokemon.ability ? formatName(pokemon.ability) : "Não informada"}</p></div>
         </div>
+        {pokemon.description ? <div className="border-l-2 border-accent/60 bg-accent/5 px-3 py-2"><p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-accent">Descrição</p><p className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{pokemon.description}</p></div> : null}
         <div><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Moveset</p><div className="grid gap-1.5 sm:grid-cols-2">{pokemon.moves.filter(Boolean).map((move) => <BuildMoveBadge key={move} move={move} />)}{pokemon.moves.filter(Boolean).length === 0 ? <span className="text-muted-foreground">Não informado</span> : null}</div></div>
-        <div className="border-t border-border/60 pt-2.5"><div className="mb-1.5 flex items-center justify-between"><p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">IVs / EVs</p><span className="font-mono text-[10px] text-muted-foreground">Lv. 50</span></div><div className="grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[10px] sm:grid-cols-3">{STAT_NAMES.map(([key, label]) => <span key={key}>{label} {pokemon.ivs[key] ?? 0}/{pokemon.evs[key] ?? 0}</span>)}</div>{evSummary ? <p className="mt-2 font-mono text-[10px] font-semibold text-foreground">{evSummary}</p> : null}</div>
+        <div className="border-t border-border/60 pt-2.5"><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">IVs / EVs</p><span className="font-mono text-[10px] text-muted-foreground">Lv. 50</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{STAT_NAMES.map(([key, label]) => <div key={key} className="rounded-md border border-border/60 bg-muted/30 px-2 py-1.5"><p className="font-mono text-[10px] font-bold text-foreground">{label}</p><div className="mt-1 flex items-center justify-between gap-2 text-[10px]"><span className="text-muted-foreground">IV <strong className="text-foreground">{pokemon.ivs[key] ?? 0}</strong></span><span className="text-muted-foreground">EV <strong className="text-accent">{pokemon.evs[key] ?? 0}</strong></span></div></div>)}</div>{evSummary ? <p className="mt-2 font-mono text-[10px] font-semibold text-foreground">EVs: {evSummary}</p> : null}</div>
       </div>
     </details>
   )
 }
 
-function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string) => Promise<void> }) {
+function CommentItem({ item, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
+  const [reply, setReply] = useState("")
+  const [replying, setReplying] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  async function submitReply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!reply.trim() || sending) return
+    setSending(true)
+    await onReply(item.id, reply)
+    setReply("")
+    setReplying(false)
+    setSending(false)
+  }
+
+  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.body}</p><button type="button" onClick={() => setReplying((value) => !value)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><input autoFocus value={reply} onChange={(event) => setReply(event.target.value)} maxLength={1000} placeholder={`Responder ${item.author.name}...`} className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} onReply={onReply} depth={depth + 1} />)}</div>
+}
+
+function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
   const [comment, setComment] = useState("")
   const [commenting, setCommenting] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -211,7 +234,7 @@ function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; 
         </div>
         {expanded ? (
           <div className="space-y-3 border-t border-border/60 pt-3">
-            {post.comments.map((item) => <div key={item.id} className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.body}</p></div></div>)}
+            {post.comments.map((item) => <CommentItem key={item.id} item={item} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
             {post.comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
             <form className="flex gap-2" onSubmit={(event) => void submitComment(event)}>
               <input value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} placeholder="Escreva um comentário..." className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />
@@ -298,8 +321,8 @@ export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedIt
     setPosts((current) => current.map((post) => post.id === postId ? { ...post, counts: { ...post.counts, [countName]: Math.max(0, post.counts[countName] + (result.active ? 1 : -1)) }, viewer: { ...post.viewer, [viewerName]: result.active } } : post))
   }
 
-  async function comment(postId: string, body: string) {
-    const response = await fetch(`/api/posts/${postId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) })
+  async function comment(postId: string, body: string, parentId?: string) {
+    const response = await fetch(`/api/posts/${postId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, parentId }) })
     if (response.ok) await refreshPosts()
   }
 

@@ -1,5 +1,6 @@
 export type BuildPokemonInput = {
   name: string
+  description?: string
   item?: string
   ability?: string
   nature?: string
@@ -16,6 +17,7 @@ export type PostInput = {
 
 export type PostComment = {
   id: string
+  parentId: string | null
   body: string
   createdAt: string
   author: {
@@ -25,6 +27,7 @@ export type PostComment = {
     image: string | null
     avatarUrl: string | null
   }
+  replies: PostComment[]
 }
 
 export type PostPokemon = BuildPokemonInput & {

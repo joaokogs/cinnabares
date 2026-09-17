@@ -284,6 +284,7 @@ export const postPokemon = pgTable("post_pokemon", {
   item: text("item").notNull().default(""),
   ability: text("ability").notNull().default(""),
   nature: text("nature").notNull().default(""),
+  description: text("description").notNull().default(""),
   ivs: jsonb("ivs").$type<Record<string, number>>().notNull().default({}),
   evs: jsonb("evs").$type<Record<string, number>>().notNull().default({}),
   moves: jsonb("moves").$type<string[]>().notNull().default([]),
@@ -305,12 +306,19 @@ export const postComment = pgTable("post_comment", {
   postId: text("post_id")
     .notNull()
     .references(() => post.id, { onDelete: "cascade" }),
+  parentId: text("parent_id"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   body: text("body").notNull(),
   ...timestamps,
-})
+}, (table) => [
+  foreignKey({
+    columns: [table.parentId],
+    foreignColumns: [table.id],
+    name: "post_comment_parent_id_post_comment_id_fk",
+  }).onDelete("cascade"),
+])
 
 export const postRepost = pgTable("post_repost", {
   postId: text("post_id")

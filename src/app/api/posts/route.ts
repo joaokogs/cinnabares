@@ -25,6 +25,7 @@ function parsePokemonEntry(raw: unknown): BuildPokemonInput | string {
     : []
   return {
     name,
+    description: String(pokemon.description ?? "").trim().slice(0, 1000),
     item: String(pokemon.item ?? "").trim().toLowerCase().slice(0, 80),
     ability: String(pokemon.ability ?? "").trim().slice(0, 80),
     nature: String(pokemon.nature ?? "").trim().slice(0, 40),
