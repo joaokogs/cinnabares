@@ -28,6 +28,8 @@ type AuthCopy = {
   switchLabel: string
 }
 
+const MIN_PASSWORD_LENGTH = 8
+
 const COPY: Record<"login" | "register", AuthCopy> = {
   login: {
     title: "Bem-vindo de volta",
@@ -132,6 +134,12 @@ export function AuthForm({ mode }: AuthFormProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+
+    if (isRegister && password.length < MIN_PASSWORD_LENGTH) {
+      setError("Sua senha é muito curta. Use pelo menos 8 caracteres para criar sua conta.")
+      return
+    }
+
     setIsPending(true)
 
     try {
@@ -190,11 +198,17 @@ export function AuthForm({ mode }: AuthFormProps) {
               type="password"
               autoComplete={isRegister ? "new-password" : "current-password"}
               required
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
+              aria-describedby={isRegister ? "password-help" : undefined}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="flex h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
             />
+            {isRegister ? (
+              <p id="password-help" className="text-xs font-normal text-muted-foreground">
+                Use pelo menos 8 caracteres. Uma combinação de letras, números e símbolos deixa sua senha mais segura.
+              </p>
+            ) : null}
           </label>
           {error ? (
             <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">

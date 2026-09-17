@@ -32,8 +32,16 @@ function matchesUsernameTaken(message: string) {
   return message.includes("username") && (message.includes("taken") || message.includes("already") || message.includes("exists"))
 }
 
-function matchesWeakPassword(message: string) {
+function matchesPasswordTooShort(message: string) {
   return message.includes("password") && (message.includes("short") || message.includes("minimum") || message.includes("at least"))
+}
+
+function matchesWeakPassword(message: string) {
+  return message.includes("password") && (message.includes("weak") || message.includes("not strong") || message.includes("strength"))
+}
+
+function matchesPasswordTooLong(message: string) {
+  return message.includes("password") && message.includes("long")
 }
 
 function matchesRateLimit(message: string) {
@@ -55,8 +63,14 @@ export function getAuthErrorMessage(message: string | undefined, fallback: strin
   if (matchesUsernameTaken(normalized)) {
     return "Esse username já está em uso. Escolha outro."
   }
+  if (matchesPasswordTooShort(normalized)) {
+    return "Sua senha é muito curta. Use pelo menos 8 caracteres."
+  }
+  if (matchesPasswordTooLong(normalized)) {
+    return "Sua senha é muito longa. Escolha uma senha com até 128 caracteres."
+  }
   if (matchesWeakPassword(normalized)) {
-    return "A senha precisa ter pelo menos 8 caracteres."
+    return "Sua senha é muito fraca. Use pelo menos 8 caracteres e combine letras, números e símbolos."
   }
   if (matchesRateLimit(normalized)) {
     return "Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente."
