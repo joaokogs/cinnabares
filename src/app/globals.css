@@ -295,6 +295,30 @@
   display: none;
 }
 
+.build-range {
+  height: 4px;
+  appearance: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.build-range::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  appearance: none;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.build-range::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: var(--card);
+}
+
 .mask-fade-x {
   mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);

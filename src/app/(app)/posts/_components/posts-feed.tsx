@@ -21,6 +21,7 @@ import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
 import { cn } from "@/lib/utils"
+import { TeamBuildEditor as BuildEditor } from "./build-editor"
 
 const STAT_NAMES = [
   ["hp", "HP"],
@@ -203,7 +204,7 @@ function SelectField({ value, onChange, options, placeholder, id }: { value: str
   )
 }
 
-function BuildEditor({ build, index, options, onChange, onRemove, canRemove }: { build: BuildDraft; index: number; options: BuildEditorOptions; onChange: (build: BuildDraft) => void; onRemove: () => void; canRemove: boolean }) {
+export function LegacyBuildEditor({ build, index, options, onChange, onRemove, canRemove }: { build: BuildDraft; index: number; options: BuildEditorOptions; onChange: (build: BuildDraft) => void; onRemove: () => void; canRemove: boolean }) {
   function update<K extends keyof BuildDraft>(key: K, value: BuildDraft[K]) { onChange({ ...build, [key]: value }) }
   function updateStat(kind: "ivs" | "evs", key: string, value: string) { onChange({ ...build, [kind]: { ...build[kind], [key]: Math.max(0, Math.min(kind === "ivs" ? 31 : 252, Number(value) || 0)) } }) }
   return (
