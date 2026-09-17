@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { createPortal } from "react-dom"
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
@@ -105,6 +106,107 @@ function MentionHoverCard({ option }: { option: MentionOption }) {
 
   const hiddenPowerType = getHiddenPowerType(option.name)
   return <span className="group/mention relative inline-flex cursor-help font-semibold text-accent underline decoration-accent/40 underline-offset-2"><span>@{titleCase(option.name)}</span><span className="pointer-events-none invisible absolute bottom-full left-0 z-50 mb-2 w-64 translate-y-1 rounded-lg border border-accent/30 bg-popover p-3 text-left opacity-0 shadow-xl transition-all group-hover/mention:visible group-hover/mention:translate-y-0 group-hover/mention:opacity-100"><span className="mb-1 flex items-center gap-2 font-heading text-xs font-bold text-popover-foreground">{option.iconUrl ? <Image src={option.iconUrl} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : details?.type || hiddenPowerType ? <TypeIcon type={details?.type ?? hiddenPowerType ?? "normal"} size={16} /> : null}{details?.title ?? titleCase(option.name)}</span>{details?.subtitle ? <span className="block text-[10px] font-semibold text-accent">{details.subtitle}</span> : null}{details?.natureStats ? <span className="mt-1.5 flex flex-wrap gap-2 text-[10px] font-bold">{details.natureStats.increased ? <span className="text-emerald-500">↑ {titleCase(details.natureStats.increased)}</span> : null}{details.natureStats.decreased ? <span className="text-red-400">↓ {titleCase(details.natureStats.decreased)}</span> : null}{!details.natureStats.increased && !details.natureStats.decreased ? <span className="text-muted-foreground">Nature neutra</span> : null}</span> : <span className="mt-1.5 block space-y-1 text-[10px] leading-4 text-muted-foreground">{details ? details.lines.map((line) => <span key={line} className="block">{line}</span>) : <span className="block">Carregando dados...</span>}</span>}</span></span>
+}
+
+type MoveHoverDetails = {
+  name: string
+  type: string
+  category: string
+  power: number | null
+  accuracy: number | null
+  effect: string
+}
+
+const moveHoverCache = new Map<string, MoveHoverDetails>()
+
+type MoveHoverPosition = {
+  left: number
+  top: number
+  above: boolean
+}
+
+export function MoveHoverCard({ name }: { name: string }) {
+  const [details, setDetails] = useState<MoveHoverDetails | null>(() => moveHoverCache.get(name) ?? null)
+  const [hovered, setHovered] = useState(false)
+  const [position, setPosition] = useState<MoveHoverPosition | null>(null)
+  const triggerRef = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    if (!name || moveHoverCache.has(name)) return
+    let active = true
+    fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
+      .then((response) => response.json() as Promise<ApiResource>)
+      .then((data) => {
+        const nextDetails = {
+          name: data.name ?? name,
+          type: data.type?.name ?? "normal",
+          category: data.damage_class?.name ?? "status",
+          power: data.power ?? null,
+          accuracy: data.accuracy ?? null,
+          effect: getEffect(data) || "Detalhes não informados.",
+        }
+        moveHoverCache.set(name, nextDetails)
+        if (active) setDetails(nextDetails)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [name])
+
+  useLayoutEffect(() => {
+    if (!hovered) return
+
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const above = rect.top > 180
+      const maxLeft = Math.max(8, window.innerWidth - 272)
+      setPosition({
+        left: Math.min(Math.max(8, rect.left), maxLeft),
+        top: above ? rect.top - 8 : rect.bottom + 8,
+        above,
+      })
+    }
+
+    updatePosition()
+    window.addEventListener("resize", updatePosition)
+    window.addEventListener("scroll", updatePosition, true)
+    return () => {
+      window.removeEventListener("resize", updatePosition)
+      window.removeEventListener("scroll", updatePosition, true)
+    }
+  }, [hovered])
+
+  const hiddenPowerType = getHiddenPowerType(name)
+  const hoverCard = hovered && position && typeof document !== "undefined"
+    ? createPortal(
+        <span
+          className="pointer-events-none fixed z-[100] w-64 rounded-lg border border-accent/30 bg-popover p-3 text-left shadow-xl"
+          style={{
+            left: position.left,
+            top: position.top,
+            maxWidth: "calc(100vw - 16px)",
+            transform: position.above ? "translateY(-100%)" : undefined,
+          }}
+        >
+          <span className="mb-1 flex items-center gap-2 font-heading text-xs font-bold text-popover-foreground">
+            <TypeIcon type={hiddenPowerType ?? details?.type ?? "normal"} size={16} />
+            {titleCase(details?.name ?? name)}
+          </span>
+          {details ? (
+            <span className="mt-1.5 block space-y-1 text-[10px] leading-4 text-muted-foreground">
+              <span className="block font-semibold text-accent">{titleCase(details.category)}</span>
+              <span className="block">Poder: {details.power ?? "—"} · Precisão: {details.accuracy ?? "—"}</span>
+              <span className="block">{details.effect}</span>
+            </span>
+          ) : (
+            <span className="mt-1.5 block text-[10px] leading-4 text-muted-foreground">Carregando dados...</span>
+          )}
+        </span>,
+        document.body,
+      )
+    : null
+
+  return <><span ref={triggerRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className="inline-flex cursor-help underline decoration-accent/40 underline-offset-2">{titleCase(details?.name ?? name)}</span>{hoverCard}</>
 }
 
 export function RichMentionText({ text, options }: { text: string; options: MentionOption[] }) {

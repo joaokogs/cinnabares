@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { getMentionOptions, MentionTextarea, RichMentionText, type MentionOption } from "@/components/ui/mention-textarea"
+import { getMentionOptions, MentionTextarea, MoveHoverCard, RichMentionText, type MentionOption } from "@/components/ui/mention-textarea"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
@@ -126,7 +126,7 @@ function BuildMoveBadge({ move }: { move: string }) {
     return () => { active = false }
   }, [move])
   const color = TYPE_COLORS[type] ?? TYPE_COLORS.normal
-  return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold">{formatName(move)}</span></div>
+  return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold"><MoveHoverCard name={move} /></span></div>
 }
 
 // eslint-disable-next-line complexity
