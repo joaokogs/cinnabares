@@ -51,27 +51,6 @@ type MoveInfo = {
 const moveInfoCache = new Map<string, MoveInfo>()
 const moveInfoPromiseCache = new Map<string, Promise<MoveInfo | null>>()
 
-const MOVE_TYPE_FALLBACKS: Record<string, string> = {
-  "flare-blitz": "fire", "flamethrower": "fire", "fire-blast": "fire", overheat: "fire", "heat-wave": "fire",
-  "close-combat": "fighting", "drain-punch": "fighting", "mach-punch": "fighting", "focus-blast": "fighting", "body-press": "fighting",
-  "stone-edge": "rock", "rock-slide": "rock", "stealth-rock": "rock",
-  "u-turn": "bug", "bug-buzz": "bug", "first-impression": "bug",
-  "earthquake": "ground", "earth-power": "ground", spikes: "ground",
-  "thunderbolt": "electric", "volt-switch": "electric", "wild-charge": "electric", discharge: "electric",
-  surf: "water", "hydro-pump": "water", scald: "water", liquidation: "water", "aqua-jet": "water",
-  "giga-drain": "grass", "leaf-storm": "grass", "energy-ball": "grass", "grassy-glide": "grass", "wood-hammer": "grass",
-  "ice-beam": "ice", "icy-wind": "ice", "freeze-dry": "ice", "ice-spinner": "ice",
-  hurricane: "flying", "brave-bird": "flying", roost: "flying",
-  psychic: "psychic", psyshock: "psychic", "expanding-force": "psychic",
-  "dark-pulse": "dark", "knock-off": "dark", "sucker-punch": "dark", "foul-play": "dark",
-  "draco-meteor": "dragon", "dragon-claw": "dragon", outrage: "dragon",
-  "flash-cannon": "steel", "iron-head": "steel",
-  moonblast: "fairy", "dazzling-gleam": "fairy", "play-rough": "fairy",
-  "shadow-ball": "ghost", poltergeist: "ghost", "shadow-sneak": "ghost",
-  "sludge-bomb": "poison", "gunk-shot": "poison", toxic: "poison",
-  "hyper-voice": "normal", "extreme-speed": "normal", return: "normal",
-}
-
 function titleCase(name: string) {
   return name.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")
 }
@@ -80,8 +59,8 @@ function MoveTypeIcon({ type }: { type: string }) {
   return <PokemonTypeIcon type={type} size={22} className="shrink-0" />
 }
 
-function getMoveType(name: string, info: MoveInfo | null) {
-  return info?.type ?? MOVE_TYPE_FALLBACKS[name] ?? "normal"
+function getMoveType(info: MoveInfo | null) {
+  return info?.type ?? "normal"
 }
 
 function MoveCategoryBadge({ category }: { category: string }) {
@@ -117,15 +96,15 @@ function loadMoveInfo(name: string) {
 }
 
 function useMoveInfo(name: string) {
-  const [data, setData] = useState<MoveInfo | null>(() => moveInfoCache.get(name) ?? null)
+  const [state, setState] = useState<{ name: string; data: MoveInfo | null }>(() => ({ name, data: moveInfoCache.get(name) ?? null }))
   useEffect(() => {
     if (!name || moveInfoCache.has(name)) return
     let active = true
     const request = loadMoveInfo(name)
-    request.then((nextData) => { if (active && nextData) setData(nextData) })
+    request.then((nextData) => { if (active && nextData) setState({ name, data: nextData }) })
     return () => { active = false }
   }, [name])
-  return data
+  return state.name === name ? state.data : moveInfoCache.get(name) ?? null
 }
 
 function NaturePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -185,7 +164,7 @@ function MoveMeta({ info, color }: { info: MoveInfo | null; color: string }) {
 
 function MoveSlot({ name, onClick, onClear }: { name: string; onClick: () => void; onClear: () => void }) {
   const info = useMoveInfo(name)
-  const type = getMoveType(name, info)
+  const type = getMoveType(info)
   const color = TYPE_COLORS[type]
   return <div className="group relative flex min-h-11 items-center gap-2 border border-border bg-muted/60 px-3 py-2.5" style={{ backgroundColor: `${color}15`, borderLeftColor: color, borderLeftWidth: 4 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left"><MoveTypeIcon type={type} /><span className="flex-1 truncate text-xs font-semibold">{info?.name ? titleCase(info.name) : name ? titleCase(name) : "Move"}</span><MoveMeta info={info} color={color} /></button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
 }
@@ -196,7 +175,7 @@ function MovePickerOption({ name, selected, onSelect }: { name: string; selected
     if (!moveInfoCache.has(name)) await loadMoveInfo(name)
     onSelect()
   }
-  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(name, info)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
+  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(info)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
 }
 
 function MovesEditor({ build, availableMoves, onChange }: { build: BuildDraft; availableMoves: string[]; onChange: (build: BuildDraft) => void }) {
