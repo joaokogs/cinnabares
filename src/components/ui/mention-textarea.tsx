@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import type { NamedOption, PokeOption } from "@/hooks/use-pokeapi-data"
@@ -103,11 +103,35 @@ export function RichMentionText({ text, options }: { text: string; options: Ment
 export function MentionTextarea({ value, onChange, options, placeholder, rows = 4, maxLength, required = false, className }: { value: string; onChange: (value: string) => void; options: MentionOption[]; placeholder?: string; rows?: number; maxLength?: number; required?: boolean; className?: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [mention, setMention] = useState<{ start: number; end: number; query: string } | null>(null)
+  const [dropUp, setDropUp] = useState(false)
   const filtered = useMemo(() => {
     if (!mention) return []
     const query = mention.query.toLowerCase()
     return options.filter((option) => option.name.toLowerCase().includes(query)).slice(0, 8)
   }, [mention, options])
+
+  useLayoutEffect(() => {
+    if (!mention || filtered.length === 0 || !textareaRef.current) {
+      setDropUp(false)
+      return
+    }
+
+    const updatePlacement = () => {
+      const rect = textareaRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setDropUp(spaceBelow < 280 && spaceAbove > spaceBelow)
+    }
+
+    updatePlacement()
+    window.addEventListener("resize", updatePlacement)
+    window.addEventListener("scroll", updatePlacement, true)
+    return () => {
+      window.removeEventListener("resize", updatePlacement)
+      window.removeEventListener("scroll", updatePlacement, true)
+    }
+  }, [filtered.length, mention])
 
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const nextValue = event.target.value
@@ -127,5 +151,5 @@ export function MentionTextarea({ value, onChange, options, placeholder, rows = 
     requestAnimationFrame(() => { textareaRef.current?.focus(); textareaRef.current?.setSelectionRange(cursor, cursor) })
   }
 
-  return <div className="relative"><textarea ref={textareaRef} value={value} onChange={handleChange} onKeyDown={(event) => { if (event.key === "Escape") setMention(null) }} placeholder={placeholder} rows={rows} maxLength={maxLength} required={required} className={cn("w-full resize-y border border-input bg-background/70 px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30", className)} />{mention && filtered.length > 0 ? <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl">{filtered.map((option) => <button key={`${option.kind}:${option.name}`} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectMention(option)} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs hover:bg-muted"><span className="w-16 shrink-0 font-mono text-[9px] uppercase text-accent">{option.kind}</span>{option.iconUrl ? <Image src={option.iconUrl} alt="" width={22} height={22} unoptimized className="size-5 object-contain" /> : null}<span className="font-semibold">{titleCase(option.name)}</span></button>)}</div> : null}</div>
+  return <div className="relative"><textarea ref={textareaRef} value={value} onChange={handleChange} onKeyDown={(event) => { if (event.key === "Escape") setMention(null) }} placeholder={placeholder} rows={rows} maxLength={maxLength} required={required} className={cn("w-full resize-y border border-input bg-background/70 px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30", className)} />{mention && filtered.length > 0 ? <div className={cn("absolute left-0 right-0 z-40 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl", dropUp ? "bottom-full mb-1" : "top-full mt-1")}>{filtered.map((option) => <button key={`${option.kind}:${option.name}`} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectMention(option)} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs hover:bg-muted"><span className="w-16 shrink-0 font-mono text-[9px] uppercase text-accent">{option.kind}</span>{option.iconUrl ? <Image src={option.iconUrl} alt="" width={22} height={22} unoptimized className="size-5 object-contain" /> : null}<span className="font-semibold">{titleCase(option.name)}</span></button>)}</div> : null}</div>
 }
