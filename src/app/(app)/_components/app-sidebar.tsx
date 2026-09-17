@@ -41,6 +41,7 @@ type UserInfo = {
 type AppSidebarProps = {
   user: UserInfo
   guild: GuildInfo | null
+  notificationCount: number
 }
 
 type NavItem = {
@@ -73,13 +74,13 @@ function BrandLink({ showLabel }: { showLabel: boolean }) {
   )
 }
 
-function NavItemLink({ item, isActive, collapsed }: { item: NavItem; isActive: boolean; collapsed: boolean }) {
+function NavItemLink({ item, isActive, collapsed, notificationCount }: { item: NavItem; isActive: boolean; collapsed: boolean; notificationCount: number }) {
   const Icon = item.icon
   return (
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
         isActive
           ? "bg-accent/15 text-accent"
@@ -89,7 +90,8 @@ function NavItemLink({ item, isActive, collapsed }: { item: NavItem; isActive: b
       title={item.label}
     >
       <Icon className="size-5 shrink-0" aria-hidden="true" />
-      {!collapsed && <span>{item.label}</span>}
+      {!collapsed && <span className="flex min-w-0 flex-1 items-center justify-between gap-2"><span>{item.label}</span>{item.href === "/notificacoes" && notificationCount > 0 ? <span className="min-w-5 rounded-full bg-accent px-1.5 py-0.5 text-center text-[10px] font-bold leading-4 text-accent-foreground">{notificationCount > 99 ? "99+" : notificationCount}</span> : null}</span>}
+      {collapsed && item.href === "/notificacoes" && notificationCount > 0 ? <span className="absolute right-1 top-1 size-2 rounded-full bg-accent ring-2 ring-background" aria-label={`${notificationCount} notificações não lidas`} /> : null}
     </Link>
   )
 }
@@ -181,9 +183,10 @@ type SidebarNavProps = {
   collapsed: boolean
   activeNavItem: NavItem | undefined
   onSignOut: () => void
+  notificationCount: number
 }
 
-function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavItem, onSignOut }: SidebarNavProps) {
+function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavItem, onSignOut, notificationCount }: SidebarNavProps) {
   return (
     <nav
       aria-label="Navegação principal"
@@ -192,7 +195,7 @@ function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavIte
       <ul className="flex flex-1 flex-col gap-1 px-3 mt-4" role="list">
         {NAV_ITEMS.map((item) => (
           <li key={item.href}>
-            <NavItemLink item={item} isActive={activeNavItem?.href === item.href} collapsed={collapsed} />
+            <NavItemLink item={item} isActive={activeNavItem?.href === item.href} collapsed={collapsed} notificationCount={notificationCount} />
           </li>
         ))}
       </ul>
@@ -207,7 +210,7 @@ function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavIte
   )
 }
 
-export function AppSidebar({ user, guild }: AppSidebarProps) {
+export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -259,6 +262,7 @@ export function AppSidebar({ user, guild }: AppSidebarProps) {
       onSignOut={() => {
         void handleSignOut()
       }}
+      notificationCount={notificationCount}
     />
   )
 

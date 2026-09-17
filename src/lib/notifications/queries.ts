@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm"
+import { and, desc, eq, isNull, sql } from "drizzle-orm"
 import { randomUUID } from "node:crypto"
 
 import { db } from "@/db"
@@ -76,6 +76,11 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
       avatarUrl: avatarUrl(row.actorUsername, row.actorImage),
     },
   }))
+}
+
+export async function getUnreadNotificationCount(userId: string) {
+  const [row] = await db.select({ count: sql<number>`count(*)` }).from(notification).where(and(eq(notification.recipientId, userId), isNull(notification.readAt)))
+  return Number(row?.count ?? 0)
 }
 
 export async function markNotificationsRead(userId: string) {

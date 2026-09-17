@@ -2,6 +2,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { getUserGuild, getGuildMemberCount } from "@/lib/guilds/queries"
+import { getUnreadNotificationCount } from "@/lib/notifications/queries"
 import { AppSidebar } from "./_components/app-sidebar"
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -11,7 +12,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     redirect("/login")
   }
 
-  const guildRow = await getUserGuild(session.user.id)
+  const [guildRow, unreadNotificationCount] = await Promise.all([
+    getUserGuild(session.user.id),
+    getUnreadNotificationCount(session.user.id),
+  ])
 
   let memberCount = 0
   if (guildRow) {
@@ -35,6 +39,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
            memberCount,
            image: guildRow.guildImage,
          } : null}
+        notificationCount={unreadNotificationCount}
       />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {children}
