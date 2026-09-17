@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
-import { usePokeApiData, type PokeOption } from "@/hooks/use-pokeapi-data"
+import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +39,14 @@ type BuildDraft = {
   ivs: Record<string, number>
   evs: Record<string, number>
   moves: string[]
+}
+
+type BuildEditorOptions = {
+  pokemon: PokeOption[]
+  items: PokeOption[]
+  abilities: NamedOption[]
+  natures: NamedOption[]
+  moves: NamedOption[]
 }
 
 function emptyBuild(): BuildDraft {
@@ -186,7 +194,16 @@ function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; 
   )
 }
 
-function BuildEditor({ build, index, options, onChange, onRemove, canRemove }: { build: BuildDraft; index: number; options: { pokemon: PokeOption[]; items: PokeOption[] }; onChange: (build: BuildDraft) => void; onRemove: () => void; canRemove: boolean }) {
+function SelectField({ value, onChange, options, placeholder, id }: { value: string; onChange: (value: string) => void; options: NamedOption[]; placeholder: string; id: string }) {
+  return (
+    <select id={id} value={value} onChange={(event) => onChange(event.target.value)} className="h-9 w-full rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30">
+      <option value="">{placeholder}</option>
+      {options.map((option) => <option key={option.name} value={option.name}>{formatName(option.name)}</option>)}
+    </select>
+  )
+}
+
+function BuildEditor({ build, index, options, onChange, onRemove, canRemove }: { build: BuildDraft; index: number; options: BuildEditorOptions; onChange: (build: BuildDraft) => void; onRemove: () => void; canRemove: boolean }) {
   function update<K extends keyof BuildDraft>(key: K, value: BuildDraft[K]) { onChange({ ...build, [key]: value }) }
   function updateStat(kind: "ivs" | "evs", key: string, value: string) { onChange({ ...build, [kind]: { ...build[kind], [key]: Math.max(0, Math.min(kind === "ivs" ? 31 : 252, Number(value) || 0)) } }) }
   return (
@@ -195,16 +212,16 @@ function BuildEditor({ build, index, options, onChange, onRemove, canRemove }: {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1.5 text-xs font-medium">Pokémon<PokeAutocomplete id={`post-pokemon-${index}`} value={build.name} onChange={(value) => update("name", value)} options={options.pokemon} kind="pokemon" placeholder="Busque um Pokémon" required /></label>
         <label className="space-y-1.5 text-xs font-medium">Item<PokeAutocomplete id={`post-item-${index}`} value={build.item} onChange={(value) => update("item", value)} options={options.items} kind="item" placeholder="Item segurado" /></label>
-        <label className="space-y-1.5 text-xs font-medium">Ability<input value={build.ability} onChange={(event) => update("ability", event.target.value)} maxLength={80} placeholder="Ex.: Intimidate" className="h-9 w-full rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
-        <label className="space-y-1.5 text-xs font-medium">Nature<input value={build.nature} onChange={(event) => update("nature", event.target.value)} maxLength={40} placeholder="Ex.: Jolly" className="h-9 w-full rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
+        <label className="space-y-1.5 text-xs font-medium" htmlFor={`post-ability-${index}`}>Ability<SelectField id={`post-ability-${index}`} value={build.ability} onChange={(value) => update("ability", value)} options={options.abilities} placeholder="Selecione uma ability" /></label>
+        <label className="space-y-1.5 text-xs font-medium" htmlFor={`post-nature-${index}`}>Nature<SelectField id={`post-nature-${index}`} value={build.nature} onChange={(value) => update("nature", value)} options={options.natures} placeholder="Selecione uma nature" /></label>
       </div>
-      <div><p className="mb-1.5 text-xs font-medium">Moveset</p><div className="grid gap-2 sm:grid-cols-4">{build.moves.map((move, moveIndex) => <input key={moveIndex} value={move} onChange={(event) => { const moves = [...build.moves]; moves[moveIndex] = event.target.value; update("moves", moves) }} maxLength={50} placeholder={`Move ${moveIndex + 1}`} className="h-8 min-w-0 rounded-lg border border-input bg-background/70 px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />)}</div></div>
-      <div><p className="mb-1.5 text-xs font-medium">IVs / EVs</p><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{STAT_NAMES.map(([key, label]) => <div key={key} className="space-y-1"><p className="text-center font-mono text-[10px] text-muted-foreground">{label}</p><input type="number" min={0} max={31} value={build.ivs[key]} onChange={(event) => updateStat("ivs", key, event.target.value)} aria-label={`${label} IV`} className="h-8 w-full rounded-lg border border-input bg-background/70 px-1 text-center text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><input type="number" min={0} max={252} value={build.evs[key]} onChange={(event) => updateStat("evs", key, event.target.value)} aria-label={`${label} EV`} className="h-8 w-full rounded-lg border border-input bg-background/70 px-1 text-center text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div>)}</div><p className="mt-1.5 text-[10px] text-muted-foreground">Limites: IV 0–31 · EV 0–252 por atributo.</p></div>
+      <div><p className="mb-1.5 text-xs font-medium">Moveset</p><div className="grid gap-2 sm:grid-cols-2">{build.moves.map((move, moveIndex) => <PokeAutocomplete key={moveIndex} id={`post-move-${index}-${moveIndex}`} value={move} onChange={(value) => { const moves = [...build.moves]; moves[moveIndex] = value; update("moves", moves) }} options={options.moves} kind="move" placeholder={`Move ${moveIndex + 1}`} />)}</div></div>
+      <div><div className="mb-1.5 flex items-center justify-between"><p className="text-xs font-medium">IVs / EVs</p><span className="text-[10px] text-muted-foreground">Arraste para ajustar</span></div><div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">{STAT_NAMES.map(([key, label]) => <div key={key} className="space-y-1.5"><div className="flex items-center justify-between font-mono text-[10px] text-muted-foreground"><span>{label}</span><span>IV {build.ivs[key]} · EV {build.evs[key]}</span></div><input type="range" min={0} max={31} value={build.ivs[key]} onChange={(event) => updateStat("ivs", key, event.target.value)} aria-label={`${label} IV`} className="h-2 w-full cursor-pointer accent-accent" /><input type="range" min={0} max={252} value={build.evs[key]} onChange={(event) => updateStat("evs", key, event.target.value)} aria-label={`${label} EV`} className="h-2 w-full cursor-pointer accent-accent" /></div>)}</div><p className="mt-1.5 text-[10px] text-muted-foreground">Limites: IV 0–31 · EV 0–252 por atributo.</p></div>
     </div>
   )
 }
 
-function CreatePost({ options, onCreated }: { options: { pokemon: PokeOption[]; items: PokeOption[] }; onCreated: () => Promise<void> }) {
+function CreatePost({ options, onCreated }: { options: BuildEditorOptions; onCreated: () => Promise<void> }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [builds, setBuilds] = useState<BuildDraft[]>([])
@@ -226,7 +243,7 @@ function CreatePost({ options, onCreated }: { options: { pokemon: PokeOption[]; 
   return (
     <Card className="border-accent/25 bg-card/90 shadow-lg shadow-black/10">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Compartilhe com a comunidade</p><h2 className="mt-1 font-heading text-xl font-bold">Publique uma estratégia</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
-      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="space-y-1.5 text-sm font-medium">Descrição<textarea required minLength={1} maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explique a ideia da estratégia..." rows={3} className="w-full resize-y rounded-lg border border-input bg-background/70 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
+      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<textarea required minLength={1} maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explique a ideia da estratégia..." rows={4} className="w-full resize-y rounded-lg border border-input bg-background/70 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
     </Card>
   )
 }
@@ -234,8 +251,8 @@ function CreatePost({ options, onCreated }: { options: { pokemon: PokeOption[]; 
 export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedItem[]; userName: string }) {
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
-  const { pokemon, items, loading: optionsLoading, error: optionsError } = usePokeApiData()
-  const options = useMemo(() => ({ pokemon, items }), [items, pokemon])
+  const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
+  const options = useMemo(() => ({ pokemon, items, abilities, natures, moves }), [abilities, items, moves, natures, pokemon])
 
   async function refreshPosts() {
     setLoading(true)

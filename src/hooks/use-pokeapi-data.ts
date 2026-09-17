@@ -4,7 +4,11 @@ import { useEffect, useState } from "react"
 
 export type PokeOption = {
   name: string
-  iconUrl: string
+  iconUrl?: string
+}
+
+export type NamedOption = {
+  name: string
 }
 
 type NamedResource = {
@@ -37,6 +41,9 @@ const BERRY_ENDPOINT = "berry?limit=1000"
 const MAX_GEN_5_POKEMON_ID = 649
 let pokemonPromise: Promise<PokeOption[]> | null = null
 let itemPromise: Promise<PokeOption[]> | null = null
+let abilityPromise: Promise<NamedOption[]> | null = null
+let naturePromise: Promise<NamedOption[]> | null = null
+let movePromise: Promise<NamedOption[]> | null = null
 
 function getResourceId(url: string) {
   return Number(url.match(/\/(\d+)\/?$/)?.[1] ?? Number.NaN)
@@ -79,6 +86,13 @@ async function fetchResources(resource: "pokemon" | "item") {
   }))
 }
 
+async function fetchNamedResources(endpoint: "ability" | "nature" | "move") {
+  const response = await fetch(`${API_URL}/${endpoint}?limit=2000`)
+  if (!response.ok) throw new Error("PokéAPI indisponível")
+  const data = await response.json() as ResourceList
+  return data.results.map(({ name }) => ({ name }))
+}
+
 function loadResources(resource: "pokemon" | "item") {
   if (resource === "pokemon") {
     pokemonPromise ??= fetchResources(resource).catch((error) => {
@@ -95,20 +109,56 @@ function loadResources(resource: "pokemon" | "item") {
   return itemPromise
 }
 
+function loadNamedResources(resource: "ability" | "nature" | "move") {
+  if (resource === "ability") {
+    abilityPromise ??= fetchNamedResources(resource).catch((error) => {
+      abilityPromise = null
+      throw error
+    })
+    return abilityPromise
+  }
+
+  if (resource === "nature") {
+    naturePromise ??= fetchNamedResources(resource).catch((error) => {
+      naturePromise = null
+      throw error
+    })
+    return naturePromise
+  }
+
+  movePromise ??= fetchNamedResources(resource).catch((error) => {
+    movePromise = null
+    throw error
+  })
+  return movePromise
+}
+
 export function usePokeApiData() {
   const [pokemon, setPokemon] = useState<PokeOption[]>([])
   const [items, setItems] = useState<PokeOption[]>([])
+  const [abilities, setAbilities] = useState<NamedOption[]>([])
+  const [natures, setNatures] = useState<NamedOption[]>([])
+  const [moves, setMoves] = useState<NamedOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
 
-    Promise.all([loadResources("pokemon"), loadResources("item")])
-      .then(([pokemonOptions, itemOptions]) => {
+    Promise.all([
+      loadResources("pokemon"),
+      loadResources("item"),
+      loadNamedResources("ability"),
+      loadNamedResources("nature"),
+      loadNamedResources("move"),
+    ])
+      .then(([pokemonOptions, itemOptions, abilityOptions, natureOptions, moveOptions]) => {
         if (!active) return
         setPokemon(pokemonOptions)
         setItems(itemOptions)
+        setAbilities(abilityOptions)
+        setNatures(natureOptions)
+        setMoves(moveOptions)
       })
       .catch(() => {
         if (active) setError("Não foi possível carregar as sugestões da PokéAPI.")
@@ -122,5 +172,5 @@ export function usePokeApiData() {
     }
   }, [])
 
-  return { pokemon, items, loading, error }
+  return { pokemon, items, abilities, natures, moves, loading, error }
 }

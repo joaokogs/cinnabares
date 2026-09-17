@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, CircleDot, Package } from "lucide-react"
+import { ChevronDown, CircleDot, Package, Sparkles } from "lucide-react"
 
 import type { PokeOption } from "@/hooks/use-pokeapi-data"
 import { cn } from "@/lib/utils"
@@ -11,7 +11,7 @@ type Props = {
   value: string
   onChange: (value: string) => void
   options: PokeOption[]
-  kind: "pokemon" | "item"
+  kind: "pokemon" | "item" | "move"
   placeholder: string
   id: string
   required?: boolean
@@ -38,7 +38,7 @@ function formatName(name: string) {
 
 function PokeIcon({ option, kind, className }: { option?: PokeOption; kind: Props["kind"]; className?: string }) {
   const [failed, setFailed] = useState(false)
-  const FallbackIcon = kind === "pokemon" ? CircleDot : Package
+  const FallbackIcon = kind === "pokemon" ? CircleDot : kind === "item" ? Package : Sparkles
 
   if (!option?.iconUrl || failed) return <FallbackIcon aria-hidden="true" className={cn("text-muted-foreground", className)} />
 
