@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
-import { postExists, togglePostAction, type PostAction } from "@/lib/posts/queries"
+import { createNotification, removeNotification } from "@/lib/notifications/queries"
+import { getPostAuthorId, postExists, togglePostAction, type PostAction } from "@/lib/posts/queries"
 
 export async function POST(
   request: Request,
@@ -23,5 +24,13 @@ export async function POST(
   }
 
   const active = await togglePostAction(id, session.user.id, body.action as PostAction)
+  if (body.action === "like") {
+    const recipientId = await getPostAuthorId(id)
+    if (active) {
+      await createNotification({ recipientId, actorId: session.user.id, type: "post_like", postId: id })
+    } else {
+      await removeNotification({ recipientId, actorId: session.user.id, type: "post_like", postId: id })
+    }
+  }
   return Response.json({ active })
 }

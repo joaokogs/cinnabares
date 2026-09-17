@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bookmark,
+  Bell,
   Flame,
   LogOut,
   Menu,
@@ -50,6 +51,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/posts", label: "Posts", icon: MessageCircle },
+  { href: "/notificacoes", label: "Notificações", icon: Bell },
   { href: "/players", label: "Players", icon: Users },
   { href: "/guildas", label: "Guildas", icon: Shield },
   { href: "/torneios", label: "Torneios", icon: Swords },

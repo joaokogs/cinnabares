@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
-import { createPostComment, postCommentExists, postExists } from "@/lib/posts/queries"
+import { createNotification } from "@/lib/notifications/queries"
+import { createPostComment, getCommentAuthorId, getPostAuthorId, postCommentExists, postExists } from "@/lib/posts/queries"
 
 export async function POST(
   request: Request,
@@ -28,6 +29,8 @@ export async function POST(
     return Response.json({ error: "O comentário respondido não existe neste post." }, { status: 400 })
   }
 
-  await createPostComment(id, session.user.id, comment, parentId || undefined)
+  const commentId = await createPostComment(id, session.user.id, comment, parentId || undefined)
+  const recipientId = parentId ? await getCommentAuthorId(parentId) : await getPostAuthorId(id)
+  await createNotification({ recipientId, actorId: session.user.id, type: parentId ? "reply" : "comment", postId: id, commentId })
   return Response.json({ ok: true }, { status: 201 })
 }

@@ -332,6 +332,25 @@ export const postCommentLike = pgTable("post_comment_like", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [primaryKey({ columns: [table.commentId, table.userId] })])
 
+export const notificationType = pgEnum("notification_type", ["post_like", "comment", "reply", "comment_like"])
+
+export const notification = pgTable("notification", {
+  id: text("id").primaryKey(),
+  recipientId: text("recipient_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  actorId: text("actor_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  type: notificationType("type").notNull(),
+  postId: text("post_id")
+    .references(() => post.id, { onDelete: "cascade" }),
+  commentId: text("comment_id")
+    .references(() => postComment.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const postRepost = pgTable("post_repost", {
   postId: text("post_id")
     .notNull()

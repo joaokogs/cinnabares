@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
-import { postCommentExists, toggleCommentLike } from "@/lib/posts/queries"
+import { createNotification, removeNotification } from "@/lib/notifications/queries"
+import { getCommentAuthorId, postCommentExists, toggleCommentLike } from "@/lib/posts/queries"
 
 export async function POST(
   request: Request,
@@ -12,5 +13,11 @@ export async function POST(
   if (!await postCommentExists(id, commentId)) return Response.json({ error: "Esse comentário não existe neste post." }, { status: 404 })
 
   const active = await toggleCommentLike(commentId, session.user.id)
+  const recipientId = await getCommentAuthorId(commentId)
+  if (active) {
+    await createNotification({ recipientId, actorId: session.user.id, type: "comment_like", postId: id, commentId })
+  } else {
+    await removeNotification({ recipientId, actorId: session.user.id, type: "comment_like", postId: id, commentId })
+  }
   return Response.json({ active })
 }

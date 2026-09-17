@@ -198,7 +198,19 @@ export async function togglePostAction(postId: string, userId: string, action: P
 }
 
 export async function createPostComment(postId: string, userId: string, body: string, parentId?: string) {
-  await db.insert(postComment).values({ id: randomUUID(), postId, userId, body, parentId: parentId ?? null })
+  const id = randomUUID()
+  await db.insert(postComment).values({ id, postId, userId, body, parentId: parentId ?? null })
+  return id
+}
+
+export async function getPostAuthorId(postId: string) {
+  const [row] = await db.select({ authorId: post.authorId }).from(post).where(eq(post.id, postId)).limit(1)
+  return row?.authorId ?? null
+}
+
+export async function getCommentAuthorId(commentId: string) {
+  const [row] = await db.select({ authorId: postComment.userId }).from(postComment).where(eq(postComment.id, commentId)).limit(1)
+  return row?.authorId ?? null
 }
 
 export async function toggleCommentLike(commentId: string, userId: string) {
