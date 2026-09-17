@@ -119,6 +119,10 @@ type MoveHoverDetails = {
 
 const moveHoverCache = new Map<string, MoveHoverDetails>()
 
+function normalizeMoveName(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, "-")
+}
+
 type MoveHoverPosition = {
   left: number
   top: number
@@ -126,31 +130,32 @@ type MoveHoverPosition = {
 }
 
 export function MoveHoverCard({ name, children, className }: { name: string; children?: ReactNode; className?: string }) {
-  const [details, setDetails] = useState<MoveHoverDetails | null>(() => moveHoverCache.get(name) ?? null)
+  const moveName = normalizeMoveName(name)
+  const [details, setDetails] = useState<MoveHoverDetails | null>(() => moveHoverCache.get(moveName) ?? null)
   const [hovered, setHovered] = useState(false)
   const [position, setPosition] = useState<MoveHoverPosition | null>(null)
   const triggerRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    if (!name || moveHoverCache.has(name)) return
+    if (!moveName || moveHoverCache.has(moveName)) return
     let active = true
-    fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
+    fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(moveName)}`)
       .then((response) => response.json() as Promise<ApiResource>)
       .then((data) => {
         const nextDetails = {
-          name: data.name ?? name,
+          name: data.name ?? moveName,
           type: data.type?.name ?? "normal",
           category: data.damage_class?.name ?? "status",
           power: data.power ?? null,
           accuracy: data.accuracy ?? null,
           effect: getEffect(data) || "Detalhes não informados.",
         }
-        moveHoverCache.set(name, nextDetails)
+        moveHoverCache.set(moveName, nextDetails)
         if (active) setDetails(nextDetails)
       })
       .catch(() => undefined)
     return () => { active = false }
-  }, [name])
+  }, [moveName])
 
   useLayoutEffect(() => {
     if (!hovered) return
@@ -176,7 +181,7 @@ export function MoveHoverCard({ name, children, className }: { name: string; chi
     }
   }, [hovered])
 
-  const hiddenPowerType = getHiddenPowerType(name)
+  const hiddenPowerType = getHiddenPowerType(moveName)
   const hoverCard = hovered && position && typeof document !== "undefined"
     ? createPortal(
         <span
@@ -190,7 +195,7 @@ export function MoveHoverCard({ name, children, className }: { name: string; chi
         >
           <span className="mb-1 flex items-center gap-2 font-heading text-xs font-bold text-popover-foreground">
             <TypeIcon type={hiddenPowerType ?? details?.type ?? "normal"} size={16} />
-            {titleCase(details?.name ?? name)}
+            {titleCase(details?.name ?? moveName)}
           </span>
           {details ? (
             <span className="mt-1.5 block space-y-1 text-[10px] leading-4 text-muted-foreground">
@@ -206,7 +211,7 @@ export function MoveHoverCard({ name, children, className }: { name: string; chi
       )
     : null
 
-  return <><span ref={triggerRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className={cn("relative inline-flex cursor-help", className)}>{children ?? titleCase(details?.name ?? name)}</span>{hoverCard}</>
+  return <><span ref={triggerRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className={cn("relative inline-flex cursor-help", className)}>{children ?? titleCase(details?.name ?? moveName)}</span>{hoverCard}</>
 }
 
 export function RichMentionText({ text, options }: { text: string; options: MentionOption[] }) {
