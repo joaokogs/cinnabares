@@ -118,9 +118,39 @@ type MoveHoverDetails = {
 }
 
 const moveHoverCache = new Map<string, MoveHoverDetails>()
+const moveHoverPromiseCache = new Map<string, Promise<MoveHoverDetails | null>>()
 
 function normalizeMoveName(name: string) {
   return name.trim().toLowerCase().replace(/\s+/g, "-")
+}
+
+function loadMoveHoverDetails(name: string) {
+  const cached = moveHoverCache.get(name)
+  if (cached) return Promise.resolve(cached)
+  const pending = moveHoverPromiseCache.get(name)
+  if (pending) return pending
+
+  const request = fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
+    .then((response) => {
+      if (!response.ok) throw new Error("Move data unavailable")
+      return response.json() as Promise<ApiResource>
+    })
+    .then((data) => {
+      const nextDetails = {
+        name: data.name ?? name,
+        type: data.type?.name ?? "normal",
+        category: data.damage_class?.name ?? "status",
+        power: data.power ?? null,
+        accuracy: data.accuracy ?? null,
+        effect: getEffect(data) || "Detalhes não informados.",
+      }
+      moveHoverCache.set(name, nextDetails)
+      return nextDetails
+    })
+    .catch(() => null)
+
+  moveHoverPromiseCache.set(name, request)
+  return request
 }
 
 type MoveHoverPosition = {
@@ -137,23 +167,11 @@ export function MoveHoverCard({ name, children, className }: { name: string; chi
   const triggerRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    if (!moveName || moveHoverCache.has(moveName)) return
+    if (!moveName) return
     let active = true
-    fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(moveName)}`)
-      .then((response) => response.json() as Promise<ApiResource>)
-      .then((data) => {
-        const nextDetails = {
-          name: data.name ?? moveName,
-          type: data.type?.name ?? "normal",
-          category: data.damage_class?.name ?? "status",
-          power: data.power ?? null,
-          accuracy: data.accuracy ?? null,
-          effect: getEffect(data) || "Detalhes não informados.",
-        }
-        moveHoverCache.set(moveName, nextDetails)
-        if (active) setDetails(nextDetails)
-      })
-      .catch(() => undefined)
+    void loadMoveHoverDetails(moveName).then((nextDetails) => {
+      if (active && nextDetails) setDetails(nextDetails)
+    })
     return () => { active = false }
   }, [moveName])
 
