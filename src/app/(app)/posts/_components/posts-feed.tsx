@@ -1,3 +1,4 @@
+/* eslint-disable quality/max-lines */
 "use client"
 
 import Image from "next/image"
@@ -8,6 +9,7 @@ import {
   Heart,
   LoaderCircle,
   MessageCircle,
+  Pin,
   Plus,
   Reply,
   Search,
@@ -168,10 +170,15 @@ function BuildPokemonCard({ pokemon, options, mentionOptions }: { pokemon: PostP
   )
 }
 
-function CommentItem({ item, mentionOptions, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; mentionOptions: MentionOption[]; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
+function CommentItem({ item, postId, mentionOptions, canPin, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; postId: string; mentionOptions: MentionOption[]; canPin: boolean; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
   const [reply, setReply] = useState("")
   const [replying, setReplying] = useState(false)
   const [sending, setSending] = useState(false)
+  const [liked, setLiked] = useState(item.liked)
+  const [likes, setLikes] = useState(item.likes)
+  const [likePending, setLikePending] = useState(false)
+  const [pinned, setPinned] = useState(item.pinned)
+  const [pinPending, setPinPending] = useState(false)
 
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -183,14 +190,37 @@ function CommentItem({ item, mentionOptions, onReply, depth = 0 }: { item: PostF
     setSending(false)
   }
 
-  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><button type="button" onClick={() => setReplying((value) => !value)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} mentionOptions={mentionOptions} onReply={onReply} depth={depth + 1} />)}</div>
+  async function toggleLike() {
+    if (likePending) return
+    setLikePending(true)
+    const response = await fetch(`/api/posts/${postId}/comments/${item.id}/like`, { method: "POST" })
+    if (response.ok) {
+      const result = await response.json() as { active: boolean }
+      setLiked(result.active)
+      setLikes((current) => Math.max(0, current + (result.active ? 1 : -1)))
+    }
+    setLikePending(false)
+  }
+
+  async function togglePin() {
+    if (pinPending) return
+    setPinPending(true)
+    const response = await fetch(`/api/posts/${postId}/comments/${item.id}/pin`, { method: "POST" })
+    if (response.ok) {
+      const result = await response.json() as { pinned: boolean }
+      setPinned(result.pinned)
+    }
+    setPinPending(false)
+  }
+
+  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => void toggleLike()} disabled={likePending} className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-accent", liked && "text-accent")} aria-label={liked ? "Remover like do comentário" : "Curtir comentário"}><Heart className={cn("size-3", liked && "fill-current")} /> {likes}</button>{pinned ? <span className="inline-flex items-center gap-1 text-accent"><Pin className="size-3" /> Fixado</span> : null}{canPin ? <button type="button" onClick={() => void togglePin()} disabled={pinPending} className="inline-flex items-center gap-1 text-muted-foreground hover:text-accent"><Pin className="size-3" /> {pinned ? "Desfixar" : "Fixar"}</button> : null}<button type="button" onClick={() => setReplying((value) => !value)} className="inline-flex items-center gap-1 text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} postId={postId} mentionOptions={mentionOptions} canPin={canPin} onReply={onReply} depth={depth + 1} />)}</div>
 }
 
-export function LinkedPostCard({ post, options, mentionOptions, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
-  return <div className="relative"><PostCard post={post} options={options} mentionOptions={mentionOptions} onAction={onAction} onComment={onComment} /><Link href={`/posts/${post.id}`} aria-label={`Abrir post ${post.title}`} className="absolute inset-x-0 top-0 z-10 h-24 rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></div>
+export function LinkedPostCard({ post, options, mentionOptions, canPin = false, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; canPin?: boolean; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+  return <div className="relative"><PostCard post={post} options={options} mentionOptions={mentionOptions} canPin={canPin} onAction={onAction} onComment={onComment} /><Link href={`/posts/${post.id}`} aria-label={`Abrir post ${post.title}`} className="absolute inset-x-0 top-0 z-10 h-24 rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></div>
 }
 
-export function PostCard({ post, options, mentionOptions, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+export function PostCard({ post, options, mentionOptions, canPin = post.viewer.isAuthor, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; canPin?: boolean; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
   const [comment, setComment] = useState("")
   const [commenting, setCommenting] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -239,7 +269,7 @@ export function PostCard({ post, options, mentionOptions, onAction, onComment }:
         </div>
         {expanded ? (
           <div className="space-y-3 border-t border-border/60 pt-3">
-            {post.comments.map((item) => <CommentItem key={item.id} item={item} mentionOptions={mentionOptions} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
+            {post.comments.map((item) => <CommentItem key={item.id} item={item} postId={post.id} mentionOptions={mentionOptions} canPin={canPin} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
             {post.comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
             <form className="flex gap-2" onSubmit={(event) => void submitComment(event)}>
               <div className="min-w-0 flex-1"><MentionTextarea value={comment} onChange={setComment} options={mentionOptions} maxLength={1000} rows={1} placeholder="Escreva um comentário..." className="min-h-9 py-1 text-xs" /></div>
@@ -306,17 +336,17 @@ export function CreatePost({ options, mentionOptions, onCreated }: { options: Bu
   )
 }
 
-function PostsResults({ posts, options, mentionOptions, onAction, onComment }: { posts: PostFeedItem[]; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+function PostsResults({ posts, viewerId, options, mentionOptions, onAction, onComment }: { posts: PostFeedItem[]; viewerId: string; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
   const [query, setQuery] = useState("")
   const normalizedQuery = query.trim().toLowerCase()
   const filteredPosts = normalizedQuery
     ? posts.filter((post) => [post.title, post.description, post.author.name, post.author.username ?? "", ...post.pokemon.flatMap((pokemon) => [pokemon.name, pokemon.item ?? "", pokemon.ability ?? "", pokemon.nature ?? "", ...pokemon.moves])].join(" ").toLowerCase().includes(normalizedQuery))
     : posts
 
-  return <><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar posts, builds ou Pokémon..." aria-label="Buscar posts" className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div><div className="mt-5 space-y-5">{filteredPosts.length > 0 ? filteredPosts.map((post) => <LinkedPostCard key={post.id} post={post} options={options} mentionOptions={mentionOptions} onAction={onAction} onComment={onComment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Nenhum post encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente buscar por outro termo.</p></CardContent></Card>}</div></>
+  return <><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar posts, builds ou Pokémon..." aria-label="Buscar posts" className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div><div className="mt-5 space-y-5">{filteredPosts.length > 0 ? filteredPosts.map((post) => <LinkedPostCard key={post.id} post={post} options={options} mentionOptions={mentionOptions} canPin={post.author.id === viewerId} onAction={onAction} onComment={onComment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Nenhum post encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente buscar por outro termo.</p></CardContent></Card>}</div></>
 }
 
-export function PostsFeed({ initialPosts, userName: _userName }: { initialPosts: PostFeedItem[]; userName: string }) {
+export function PostsFeed({ initialPosts, userName: _userName, viewerId }: { initialPosts: PostFeedItem[]; userName: string; viewerId: string }) {
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
   const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
@@ -343,6 +373,6 @@ export function PostsFeed({ initialPosts, userName: _userName }: { initialPosts:
   }
 
   return (
-    <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><Link href="/posts/novo" aria-label="Criar novo post" className="fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Plus className="size-4" aria-hidden="true" /> Criar post</Link></main>
+    <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} viewerId={viewerId} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><Link href="/posts/novo" aria-label="Criar novo post" className="fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Plus className="size-4" aria-hidden="true" /> Criar post</Link></main>
   )
 }

@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm"
 import { randomUUID } from "node:crypto"
 
 import { db } from "@/db"
-import { post, postBookmark, postComment, postLike, postPokemon, postRepost, user } from "@/db/schema"
+import { post, postBookmark, postComment, postCommentLike, postLike, postPokemon, postRepost, user } from "@/db/schema"
 import type { PostComment, PostFeedItem, PostInput } from "./types"
 
 const PAGE_SIZE = 20
@@ -67,11 +67,14 @@ export async function getPosts(viewerId: string, limit: number | undefined = PAG
       postId: postComment.postId,
       body: postComment.body,
       parentId: postComment.parentId,
+      pinnedAt: postComment.pinnedAt,
       createdAt: postComment.createdAt,
       authorId: user.id,
       authorName: user.name,
       authorUsername: user.username,
       authorImage: user.image,
+      likes: sql<number>`cast((select count(*) from post_comment_like where post_comment_like.comment_id = ${postComment.id}) as int)`,
+      liked: sql<boolean>`exists(select 1 from post_comment_like where post_comment_like.comment_id = ${postComment.id} and post_comment_like.user_id = ${viewerId})`,
     }).from(postComment)
       .innerJoin(user, eq(user.id, postComment.userId))
       .where(inArray(postComment.postId, postIds))
@@ -124,6 +127,7 @@ export async function getPosts(viewerId: string, limit: number | undefined = PAG
       bookmarks: Number(row.bookmarks),
     },
     viewer: {
+      isAuthor: row.authorId === viewerId,
       liked: Boolean(row.liked),
       reposted: Boolean(row.reposted),
       bookmarked: Boolean(row.bookmarked),
@@ -197,12 +201,39 @@ export async function createPostComment(postId: string, userId: string, body: st
   await db.insert(postComment).values({ id: randomUUID(), postId, userId, body, parentId: parentId ?? null })
 }
 
+export async function toggleCommentLike(commentId: string, userId: string) {
+  const condition = and(eq(postCommentLike.commentId, commentId), eq(postCommentLike.userId, userId))
+  const existing = await db.select({ commentId: postCommentLike.commentId }).from(postCommentLike).where(condition).limit(1)
+  if (existing.length > 0) {
+    await db.delete(postCommentLike).where(condition)
+    return false
+  }
+
+  await db.insert(postCommentLike).values({ commentId, userId })
+  return true
+}
+
+export async function toggleCommentPin(postId: string, commentId: string, userId: string) {
+  const [postRow] = await db.select({ authorId: post.authorId }).from(post).where(eq(post.id, postId)).limit(1)
+  if (!postRow || postRow.authorId !== userId) return null
+
+  const [comment] = await db.select({ pinnedAt: postComment.pinnedAt }).from(postComment).where(and(eq(postComment.id, commentId), eq(postComment.postId, postId))).limit(1)
+  if (!comment) return null
+
+  const nextPinned = !comment.pinnedAt
+  await db.update(postComment).set({ pinnedAt: nextPinned ? new Date() : null }).where(and(eq(postComment.id, commentId), eq(postComment.postId, postId)))
+  return nextPinned
+}
+
 function buildCommentTree(comments: Array<{
   id: string
   postId: string
   parentId: string | null
   body: string
   createdAt: Date
+  pinnedAt: Date | null
+  likes: number
+  liked: boolean
   authorId: string
   authorName: string
   authorUsername: string | null
@@ -215,11 +246,14 @@ function buildCommentTree(comments: Array<{
     byParent.set(comment.parentId, children)
   }
   function mapComments(parentId: string | null): PostComment[] {
-    return (byParent.get(parentId) ?? []).slice(0, parentId ? 10 : 3).map((comment) => ({
+    return (byParent.get(parentId) ?? []).slice().sort((first, second) => Number(Boolean(second.pinnedAt)) - Number(Boolean(first.pinnedAt)) || second.createdAt.getTime() - first.createdAt.getTime()).slice(0, parentId ? 10 : 3).map((comment) => ({
       id: comment.id,
       parentId: comment.parentId,
       body: comment.body,
       createdAt: serializeDate(comment.createdAt),
+      likes: Number(comment.likes),
+      liked: Boolean(comment.liked),
+      pinned: Boolean(comment.pinnedAt),
       author: {
         id: comment.authorId,
         name: comment.authorName,

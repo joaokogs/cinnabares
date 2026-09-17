@@ -107,7 +107,7 @@ async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, viewerId
               <PlayerTournamentStats history={history} />
             </section>
           }
-          posts={<ProfilePosts initialPosts={posts} />}
+          posts={<ProfilePosts initialPosts={posts} viewerId={viewerId} />}
         />
       </div>
     </main>

@@ -56,7 +56,7 @@ export function PostDetail({ initialPost }: { initialPost: PostFeedItem }) {
   return <main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href="/posts" className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para posts</Link><PostCard post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></section></main>
 }
 
-export function ProfilePosts({ initialPosts }: { initialPosts: PostFeedItem[] }) {
+export function ProfilePosts({ initialPosts, viewerId }: { initialPosts: PostFeedItem[]; viewerId: string }) {
   const [posts, setPosts] = useState(initialPosts)
   const { pokemon, mentionOptions } = usePostOptions()
 
@@ -80,5 +80,5 @@ export function ProfilePosts({ initialPosts }: { initialPosts: PostFeedItem[] })
   }
 
   if (posts.length === 0) return <div className="rounded-xl border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">Este usuário ainda não publicou posts.</div>
-  return <div className="space-y-5">{posts.map((post) => <LinkedPostCard key={post.id} post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />)}</div>
+  return <div className="space-y-5">{posts.map((post) => <LinkedPostCard key={post.id} post={post} options={pokemon} mentionOptions={mentionOptions} canPin={post.author.id === viewerId} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />)}</div>
 }

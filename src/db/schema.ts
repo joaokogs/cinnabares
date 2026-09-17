@@ -1,3 +1,4 @@
+/* eslint-disable quality/max-lines */
 import { boolean, date, foreignKey, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core"
 
 const timestamps = {
@@ -307,6 +308,7 @@ export const postComment = pgTable("post_comment", {
     .notNull()
     .references(() => post.id, { onDelete: "cascade" }),
   parentId: text("parent_id"),
+  pinnedAt: timestamp("pinned_at", { withTimezone: true }),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -319,6 +321,16 @@ export const postComment = pgTable("post_comment", {
     name: "post_comment_parent_id_post_comment_id_fk",
   }).onDelete("cascade"),
 ])
+
+export const postCommentLike = pgTable("post_comment_like", {
+  commentId: text("comment_id")
+    .notNull()
+    .references(() => postComment.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.commentId, table.userId] })])
 
 export const postRepost = pgTable("post_repost", {
   postId: text("post_id")

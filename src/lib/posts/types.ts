@@ -20,6 +20,9 @@ export type PostComment = {
   parentId: string | null
   body: string
   createdAt: string
+  likes: number
+  liked: boolean
+  pinned: boolean
   author: {
     id: string
     name: string
@@ -59,6 +62,7 @@ export type PostFeedItem = {
     bookmarks: number
   }
   viewer: {
+    isAuthor: boolean
     liked: boolean
     reposted: boolean
     bookmarked: boolean

@@ -18,5 +18,5 @@ export default async function PostsPage() {
   if (!session) redirect("/login")
 
   const posts = await getPosts(session.user.id)
-  return <PostsFeed initialPosts={posts} userName={session.user.name} />
+  return <PostsFeed initialPosts={posts} userName={session.user.name} viewerId={session.user.id} />
 }
