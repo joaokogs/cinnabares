@@ -158,6 +158,7 @@ export async function insertGuildInvite(input: {
   token: string
   maxUses: number | null
   expiresAt: Date | null
+  recipientId?: string | null
 }) {
   const [row] = await db.insert(guildInvite).values(input).returning({ token: guildInvite.token })
   return row

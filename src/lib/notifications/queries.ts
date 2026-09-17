@@ -15,6 +15,7 @@ export async function createNotification(input: {
   type: NotificationType
   postId?: string
   commentId?: string
+  link?: string
 }) {
   if (!input.recipientId || input.recipientId === input.actorId) return
   await db.insert(notification).values({
@@ -24,6 +25,7 @@ export async function createNotification(input: {
     type: input.type,
     postId: input.postId ?? null,
     commentId: input.commentId ?? null,
+    link: input.link ?? null,
   })
 }
 
@@ -50,6 +52,7 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
     type: notification.type,
     postId: notification.postId,
     commentId: notification.commentId,
+    link: notification.link,
     createdAt: notification.createdAt,
     readAt: notification.readAt,
     actorId: user.id,
@@ -67,6 +70,7 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
     type: row.type,
     postId: row.postId,
     commentId: row.commentId,
+    link: row.link,
     createdAt: row.createdAt.toISOString(),
     readAt: row.readAt?.toISOString() ?? null,
     actor: {

@@ -141,6 +141,8 @@ export const guildInvite = pgTable("guild_invite", {
   uses: integer("uses").notNull().default(0),
   maxUses: integer("max_uses"),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+  recipientId: text("recipient_id")
+    .references(() => user.id, { onDelete: "cascade" }),
   ...timestamps,
 })
 
@@ -332,7 +334,7 @@ export const postCommentLike = pgTable("post_comment_like", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [primaryKey({ columns: [table.commentId, table.userId] })])
 
-export const notificationType = pgEnum("notification_type", ["post_like", "comment", "reply", "comment_like"])
+export const notificationType = pgEnum("notification_type", ["post_like", "comment", "reply", "comment_like", "guild_invite"])
 
 export const notification = pgTable("notification", {
   id: text("id").primaryKey(),
@@ -347,6 +349,7 @@ export const notification = pgTable("notification", {
     .references(() => post.id, { onDelete: "cascade" }),
   commentId: text("comment_id")
     .references(() => postComment.id, { onDelete: "cascade" }),
+  link: text("link"),
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })

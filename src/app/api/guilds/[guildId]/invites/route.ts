@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto"
 
 import { auth } from "@/lib/auth"
-import { findGuildFounder, findGuildTag, insertGuildInvite } from "@/lib/guilds/repository"
+import { createNotification } from "@/lib/notifications/queries"
+import { findGuildFounder, findGuildTag, findMembershipByUser, insertGuildInvite } from "@/lib/guilds/repository"
+import { getUserById } from "@/lib/users/queries"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 
@@ -23,6 +25,14 @@ export async function POST(
   const body = (await request.json().catch(() => ({}))) as {
     maxUses?: number | null
     expiresAt?: string | null
+    userId?: string
+  }
+
+  const recipientId = typeof body.userId === "string" ? body.userId.trim() || null : null
+  if (recipientId) {
+    const [player, membership] = await Promise.all([getUserById(recipientId), findMembershipByUser(recipientId)])
+    if (!player) return Response.json({ error: "Esse player não existe." }, { status: 404 })
+    if (membership) return Response.json({ error: "Esse player já pertence a uma guilda." }, { status: 409 })
   }
 
   const token = randomUUID()
@@ -31,12 +41,17 @@ export async function POST(
     guildId,
     createdBy: session.user.id,
     token,
-    maxUses: body.maxUses ?? null,
-    expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+    maxUses: recipientId ? 1 : body.maxUses ?? null,
+    expiresAt: recipientId ? new Date(Date.now() + 7 * 86400000) : body.expiresAt ? new Date(body.expiresAt) : null,
+    recipientId,
   })
 
   const guildData = await findGuildTag(guildId)
   const url = `${SITE_URL}/guildas/${encodeURIComponent(guildData?.tag ?? "")}/join?token=${invite.token}`
 
-  return Response.json({ token: invite.token, url })
+  if (recipientId) {
+    await createNotification({ recipientId, actorId: session.user.id, type: "guild_invite", link: url })
+  }
+
+  return Response.json({ token: invite.token, url, player: recipientId ? { name: (await getUserById(recipientId))?.name } : undefined })
 }

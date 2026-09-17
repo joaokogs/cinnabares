@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Heart, MessageCircle, Reply } from "lucide-react"
+import { Heart, Mail, MessageCircle, Reply } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -30,6 +30,7 @@ function exactDate(value: string) {
 }
 
 function notificationText(item: NotificationItem) {
+  if (item.type === "guild_invite") return "convidou você para entrar em uma guilda."
   if (item.type === "post_like") return "curtiu seu post."
   if (item.type === "comment") return "comentou no seu post."
   if (item.type === "reply") return "respondeu ao seu comentário."
@@ -38,6 +39,7 @@ function notificationText(item: NotificationItem) {
 
 function notificationIcon(type: NotificationItem["type"]) {
   if (type === "post_like" || type === "comment_like") return Heart
+  if (type === "guild_invite") return Mail
   if (type === "reply") return Reply
   return MessageCircle
 }
@@ -55,7 +57,7 @@ export function NotificationsList({ initialNotifications }: { initialNotificatio
 
   return <div className="space-y-2">{initialNotifications.map((item) => {
     const Icon = notificationIcon(item.type)
-    const href = item.postId ? `/posts/${item.postId}${item.commentId ? `#comment-${item.commentId}` : ""}` : "/notificacoes"
+    const href = item.link ?? (item.postId ? `/posts/${item.postId}${item.commentId ? `#comment-${item.commentId}` : ""}` : "/notificacoes")
     return <Link key={item.id} href={href} className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/90 p-4 transition-colors hover:border-accent/40 hover:bg-accent/5"><div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-accent">{item.actor.avatarUrl ? <Image src={item.actor.avatarUrl} alt="" width={40} height={40} unoptimized className="size-full object-cover" /> : <span className="font-heading font-bold">{item.actor.name.slice(0, 1).toUpperCase()}</span>}</div><div className="min-w-0 flex-1 text-sm"><p><span className="font-semibold">{item.actor.name}</span> <span className="text-muted-foreground">{notificationText(item)}</span></p><time dateTime={item.createdAt} title={exactDate(item.createdAt)} className="mt-1 block text-xs text-muted-foreground">{relativeDate(item.createdAt)}</time></div><Icon className="size-5 shrink-0 text-accent" aria-hidden="true" /></Link>
   })}</div>
 }

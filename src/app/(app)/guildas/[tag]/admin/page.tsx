@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth"
 import { getGuildByTag, getGuildRoles } from "@/lib/guilds/queries"
 import { GuildAdminPanel } from "../../_components/guild-admin-panel"
 import { InvitePanel } from "./_components/invite-panel"
+import { PlayerInvitePanel } from "./_components/player-invite-panel"
 
 type GuildAdminPageProps = { params: Promise<{ tag: string }> }
 
@@ -47,6 +48,7 @@ export default async function GuildAdminPage({ params }: GuildAdminPageProps) {
           initialRoles={roles}
         />
         <InvitePanel guildId={currentGuild.id} />
+        <PlayerInvitePanel guildId={currentGuild.id} />
       </div>
     </main>
   )

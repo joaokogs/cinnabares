@@ -9,6 +9,9 @@ import {
 } from "@/lib/guilds/repository"
 
 async function inviteErrorResponse(invite: GuildInviteRow, userId: string) {
+  if (invite.recipientId && invite.recipientId !== userId) {
+    return Response.json({ error: "Este convite foi enviado para outro player." }, { status: 403 })
+  }
   if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
     return Response.json({ error: "Este convite expirou. Solicite um novo link ao fundador." }, { status: 410 })
   }
