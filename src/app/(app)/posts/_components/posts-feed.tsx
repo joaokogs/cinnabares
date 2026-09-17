@@ -167,7 +167,7 @@ function BuildPokemonCard({ pokemon, options, mentionOptions }: { pokemon: PostP
   )
 }
 
-function CommentItem({ item, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
+function CommentItem({ item, mentionOptions, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; mentionOptions: MentionOption[]; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
   const [reply, setReply] = useState("")
   const [replying, setReplying] = useState(false)
   const [sending, setSending] = useState(false)
@@ -182,7 +182,7 @@ function CommentItem({ item, onReply, depth = 0 }: { item: PostFeedItem["comment
     setSending(false)
   }
 
-  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.body}</p><button type="button" onClick={() => setReplying((value) => !value)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><input autoFocus value={reply} onChange={(event) => setReply(event.target.value)} maxLength={1000} placeholder={`Responder ${item.author.name}...`} className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} onReply={onReply} depth={depth + 1} />)}</div>
+  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><button type="button" onClick={() => setReplying((value) => !value)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} mentionOptions={mentionOptions} onReply={onReply} depth={depth + 1} />)}</div>
 }
 
 function PostCard({ post, options, mentionOptions, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
@@ -235,10 +235,10 @@ function PostCard({ post, options, mentionOptions, onAction, onComment }: { post
         </div>
         {expanded ? (
           <div className="space-y-3 border-t border-border/60 pt-3">
-            {post.comments.map((item) => <CommentItem key={item.id} item={item} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
+            {post.comments.map((item) => <CommentItem key={item.id} item={item} mentionOptions={mentionOptions} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
             {post.comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
             <form className="flex gap-2" onSubmit={(event) => void submitComment(event)}>
-              <input value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} placeholder="Escreva um comentário..." className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />
+              <div className="min-w-0 flex-1"><MentionTextarea value={comment} onChange={setComment} options={mentionOptions} maxLength={1000} rows={1} placeholder="Escreva um comentário..." className="min-h-9 py-1 text-xs" /></div>
               <Button type="submit" size="icon" aria-label="Enviar comentário" disabled={!comment.trim() || commenting}>{commenting ? <LoaderCircle className="animate-spin" /> : <Send />}</Button>
             </form>
           </div>
