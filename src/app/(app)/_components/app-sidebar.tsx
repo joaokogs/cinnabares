@@ -1,11 +1,10 @@
 "use client"
 
 import {
-  ChevronLeft,
-  ChevronRight,
   Bookmark,
   Bell,
   Flame,
+  Home,
   LogOut,
   Menu,
   Shield,
@@ -14,7 +13,6 @@ import {
   X,
   Swords,
   Trophy,
-  MessageCircle,
 } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
@@ -51,7 +49,7 @@ type NavItem = {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/posts", label: "Posts", icon: MessageCircle },
+  { href: "/posts", label: "Posts", icon: Home },
   { href: "/notificacoes", label: "Notificações", icon: Bell },
   { href: "/players", label: "Players", icon: Users },
   { href: "/guildas", label: "Guildas", icon: Shield },
@@ -62,7 +60,7 @@ const NAV_ITEMS: NavItem[] = [
 function BrandLink({ showLabel }: { showLabel: boolean }) {
   return (
     <Link
-      href="/"
+      href="/posts"
       className="flex min-w-0 items-center gap-2 font-heading text-lg font-semibold tracking-tight"
       aria-label="Cinnabares - ir para o início"
     >
@@ -213,11 +211,9 @@ function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavIte
 export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const prevPathname = useRef(pathname)
 
-  const toggleCollapse = useCallback(() => setCollapsed((prev) => !prev), [])
   const openMobile = useCallback(() => setMobileOpen(true), [])
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
@@ -249,7 +245,7 @@ export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) 
     .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
     .sort((first, second) => second.href.length - first.href.length)[0]
 
-  const sidebarWidth = collapsed ? "w-[68px]" : "w-60"
+  const collapsed = true
 
   const sidebarContent = (
     <SidebarNav
@@ -312,7 +308,7 @@ export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) 
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/60 bg-background transition-[width] duration-200 lg:flex",
-          sidebarWidth
+          "w-[68px]"
         )}
       >
         <div className={cn("flex items-center gap-2 px-4 py-4", collapsed && "justify-center px-0")}>
@@ -320,17 +316,6 @@ export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) 
         </div>
         {sidebarContent}
 
-        <div className="border-t border-border/60 px-3 py-2">
-          <button
-            type="button"
-            onClick={toggleCollapse}
-            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground"
-            aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
-          >
-            {collapsed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronLeft className="size-4" aria-hidden="true" />}
-            {!collapsed && <span>Recolher</span>}
-          </button>
-        </div>
       </aside>
     </>
   )
