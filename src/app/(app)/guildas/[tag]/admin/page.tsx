@@ -34,7 +34,7 @@ export default async function GuildAdminPage({ params }: GuildAdminPageProps) {
   const bannerUrl = currentGuild.banner ? `/api/guilds/${currentGuild.id}/banner?path=${encodeURIComponent(currentGuild.banner)}` : null
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-12 sm:px-6 lg:py-16">
+    <main className="relative min-h-screen overflow-visible bg-background px-4 py-12 sm:px-6 lg:py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" aria-hidden="true" />
       <div className="relative z-10 mx-auto w-full max-w-5xl space-y-7">
         <Link href={`/guildas/${currentGuild.tag}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><ArrowLeft className="size-4" aria-hidden="true" /> Voltar para a guilda</Link>
