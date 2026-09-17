@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { createPortal } from "react-dom"
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react"
 
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import { getHiddenPowerType, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
@@ -125,7 +125,7 @@ type MoveHoverPosition = {
   above: boolean
 }
 
-export function MoveHoverCard({ name }: { name: string }) {
+export function MoveHoverCard({ name, children, className }: { name: string; children?: ReactNode; className?: string }) {
   const [details, setDetails] = useState<MoveHoverDetails | null>(() => moveHoverCache.get(name) ?? null)
   const [hovered, setHovered] = useState(false)
   const [position, setPosition] = useState<MoveHoverPosition | null>(null)
@@ -206,7 +206,7 @@ export function MoveHoverCard({ name }: { name: string }) {
       )
     : null
 
-  return <><span ref={triggerRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className="inline-flex cursor-help underline decoration-accent/40 underline-offset-2">{titleCase(details?.name ?? name)}</span>{hoverCard}</>
+  return <><span ref={triggerRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className={cn("relative inline-flex cursor-help", className)}>{children ?? titleCase(details?.name ?? name)}</span>{hoverCard}</>
 }
 
 export function RichMentionText({ text, options }: { text: string; options: MentionOption[] }) {

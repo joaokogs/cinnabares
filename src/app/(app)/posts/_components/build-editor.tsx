@@ -168,7 +168,7 @@ function MoveSlot({ name, onClick, onClear }: { name: string; onClick: () => voi
   const info = useMoveInfo(name)
   const type = getMoveType(info, name)
   const color = TYPE_COLORS[type]
-  return <div className="group relative flex min-h-11 items-center gap-2 border border-border bg-muted/60 px-3 py-2.5" style={{ backgroundColor: `${color}15`, borderLeftColor: color, borderLeftWidth: 4 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left"><MoveTypeIcon type={type} /><span className="flex-1 truncate text-xs font-semibold">{name ? <MoveHoverCard name={info?.name ?? name} /> : "Move"}</span><MoveMeta info={info} color={color} /></button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
+  return <div className="group relative flex min-h-11 items-center gap-2 border border-border bg-muted/60 px-3 py-2.5" style={{ backgroundColor: `${color}15`, borderLeftColor: color, borderLeftWidth: 4 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 text-left"><MoveHoverCard name={info?.name ?? name} className="flex min-w-0 flex-1 items-center gap-2.5"><MoveTypeIcon type={type} /><span className="flex-1 truncate text-xs font-semibold">{name ? titleCase(info?.name ?? name) : "Move"}</span><MoveMeta info={info} color={color} /></MoveHoverCard></button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
 }
 
 function MovePickerOption({ name, selected, onSelect }: { name: string; selected: boolean; onSelect: () => void }) {
@@ -177,7 +177,7 @@ function MovePickerOption({ name, selected, onSelect }: { name: string; selected
     if (!moveInfoCache.has(name)) await loadMoveInfo(name)
     onSelect()
   }
-  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(info, name)} /><span className="flex-1"><MoveHoverCard name={info?.name ?? name} /></span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
+  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveHoverCard name={info?.name ?? name} className="flex min-w-0 flex-1 items-center gap-3 text-left"><MoveTypeIcon type={getMoveType(info, name)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span></MoveHoverCard>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
 }
 
 function MovesEditor({ build, availableMoves, onChange }: { build: BuildDraft; availableMoves: string[]; onChange: (build: BuildDraft) => void }) {

@@ -126,7 +126,7 @@ function BuildMoveBadge({ move }: { move: string }) {
     return () => { active = false }
   }, [move])
   const color = TYPE_COLORS[type] ?? TYPE_COLORS.normal
-  return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold"><MoveHoverCard name={move} /></span></div>
+  return <MoveHoverCard name={move} className="block min-w-0"><span className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold">{formatName(move)}</span></span></MoveHoverCard>
 }
 
 // eslint-disable-next-line complexity
