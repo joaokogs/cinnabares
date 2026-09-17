@@ -341,6 +341,17 @@ input[aria-label$=" IV"] {
   -moz-appearance: textfield;
 }
 
+input[aria-label$=" EV value"]::-webkit-inner-spin-button,
+input[aria-label$=" EV value"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[aria-label$=" EV value"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
 .mask-fade-x {
   mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
