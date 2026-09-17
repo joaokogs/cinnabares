@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Plus,
   Reply,
-  Repeat2,
+  Search,
   Send,
   Trash2,
 } from "lucide-react"
@@ -234,7 +234,6 @@ export function PostCard({ post, options, mentionOptions, onAction, onComment }:
           <div className="flex items-center gap-1">
             <ActionButton label="Curtir post" count={post.counts.likes} active={post.viewer.liked} icon={Heart} onClick={() => onAction(post.id, "like")} />
             <ActionButton label="Comentar no post" count={post.counts.comments} active={expanded} icon={MessageCircle} onClick={() => setExpanded((value) => !value)} />
-            <ActionButton label="Repostar post" count={post.counts.reposts} active={post.viewer.reposted} icon={Repeat2} onClick={() => onAction(post.id, "repost")} />
           </div>
           <ActionButton label="Salvar post" count={post.counts.bookmarks} active={post.viewer.bookmarked} icon={Bookmark} onClick={() => onAction(post.id, "bookmark")} />
         </div>
@@ -307,7 +306,17 @@ export function CreatePost({ options, mentionOptions, onCreated }: { options: Bu
   )
 }
 
-export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedItem[]; userName: string }) {
+function PostsResults({ posts, options, mentionOptions, onAction, onComment }: { posts: PostFeedItem[]; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLowerCase()
+  const filteredPosts = normalizedQuery
+    ? posts.filter((post) => [post.title, post.description, post.author.name, post.author.username ?? "", ...post.pokemon.flatMap((pokemon) => [pokemon.name, pokemon.item ?? "", pokemon.ability ?? "", pokemon.nature ?? "", ...pokemon.moves])].join(" ").toLowerCase().includes(normalizedQuery))
+    : posts
+
+  return <><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar posts, builds ou Pokémon..." aria-label="Buscar posts" className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div><div className="mt-5 space-y-5">{filteredPosts.length > 0 ? filteredPosts.map((post) => <LinkedPostCard key={post.id} post={post} options={options} mentionOptions={mentionOptions} onAction={onAction} onComment={onComment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Nenhum post encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente buscar por outro termo.</p></CardContent></Card>}</div></>
+}
+
+export function PostsFeed({ initialPosts, userName: _userName }: { initialPosts: PostFeedItem[]; userName: string }) {
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
   const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
@@ -334,6 +343,6 @@ export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedIt
   }
 
   return (
-    <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}{posts.length > 0 ? posts.map((post) => <LinkedPostCard key={post.id} post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Ainda não há posts</p><p className="mt-2 text-sm text-muted-foreground">{userName}, publique a primeira estratégia da comunidade.</p></CardContent></Card>}</div></section><Link href="/posts/novo" aria-label="Criar novo post" className="fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Plus className="size-4" aria-hidden="true" /> Criar post</Link></main>
+    <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><Link href="/posts/novo" aria-label="Criar novo post" className="fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Plus className="size-4" aria-hidden="true" /> Criar post</Link></main>
   )
 }

@@ -3,6 +3,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Bookmark,
   Flame,
   LogOut,
   Menu,
@@ -49,7 +50,6 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/posts", label: "Posts", icon: MessageCircle },
-  { href: "/perfil", label: "Perfil", icon: User },
   { href: "/players", label: "Players", icon: Users },
   { href: "/guildas", label: "Guildas", icon: Shield },
   { href: "/torneios", label: "Torneios", icon: Swords },
@@ -167,6 +167,10 @@ function SignOutButton({ collapsed, onSignOut }: { collapsed: boolean; onSignOut
   )
 }
 
+function SavedPostsLink({ collapsed }: { collapsed: boolean }) {
+  return <Link href="/posts/salvos" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} title="Posts salvos"><Bookmark className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>Posts salvos</span>}</Link>
+}
+
 type SidebarNavProps = {
   guild: GuildInfo | null
   user: UserInfo
@@ -194,6 +198,7 @@ function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavIte
       <div className="mt-auto border-t border-border/60 px-3 py-3">
         {guild && !collapsed && <GuildCard guild={guild} />}
         <UserLink user={user} displayName={displayName} initial={initial} collapsed={collapsed} />
+        <SavedPostsLink collapsed={collapsed} />
         <SignOutButton collapsed={collapsed} onSignOut={onSignOut} />
       </div>
     </nav>

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm"
 import { randomUUID } from "node:crypto"
 
 import { db } from "@/db"
@@ -15,14 +15,12 @@ function serializeDate(value: Date) {
   return value.toISOString()
 }
 
-export async function getPosts(viewerId: string, limit: number | undefined = PAGE_SIZE, authorId?: string, postId?: string): Promise<PostFeedItem[]> {
-  const where = authorId && postId
-    ? and(eq(post.authorId, authorId), eq(post.id, postId))
-    : authorId
-      ? eq(post.authorId, authorId)
-      : postId
-        ? eq(post.id, postId)
-        : undefined
+export async function getPosts(viewerId: string, limit: number | undefined = PAGE_SIZE, authorId?: string, postId?: string, savedOnly = false): Promise<PostFeedItem[]> {
+  const conditions: SQL[] = []
+  if (authorId) conditions.push(eq(post.authorId, authorId))
+  if (postId) conditions.push(eq(post.id, postId))
+  if (savedOnly) conditions.push(sql`${post.id} in (select post_id from post_bookmark where user_id = ${viewerId})`)
+  const where = conditions.length > 0 ? and(...conditions) : undefined
   const postsQuery = db
     .select({
       id: post.id,
@@ -140,6 +138,10 @@ export async function getPost(viewerId: string, postId: string) {
 
 export async function getUserPosts(viewerId: string, authorId: string) {
   return getPosts(viewerId, undefined, authorId)
+}
+
+export async function getSavedPosts(viewerId: string) {
+  return getPosts(viewerId, undefined, undefined, undefined, true)
 }
 
 export async function createPost(authorId: string, input: PostInput) {
