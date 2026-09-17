@@ -12,14 +12,15 @@ import {
   Send,
   Trash2,
 } from "lucide-react"
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
+import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
+import { TYPE_COLORS } from "@/lib/pokemon-build"
 import { cn } from "@/lib/utils"
 import { TeamBuildEditor as BuildEditor } from "./build-editor"
 
@@ -99,34 +100,62 @@ function ActionButton({ label, count, active, icon: Icon, onClick }: {
   )
 }
 
+type DisplayPokemonMeta = { id: number; types: string[] }
+const displayPokemonCache = new Map<string, DisplayPokemonMeta>()
+const displayMoveTypeCache = new Map<string, string>()
+
+function BuildMoveBadge({ move }: { move: string }) {
+  const [type, setType] = useState(() => displayMoveTypeCache.get(move) ?? "normal")
+  useEffect(() => {
+    if (!move || displayMoveTypeCache.has(move)) return
+    let active = true
+    fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(move)}`)
+      .then((response) => response.json() as Promise<{ type: { name: string } }>)
+      .then((data) => {
+        displayMoveTypeCache.set(move, data.type.name)
+        if (active) setType(data.type.name)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [move])
+  const color = TYPE_COLORS[type] ?? TYPE_COLORS.normal
+  return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold">{formatName(move)}</span></div>
+}
+
 function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options: PokeOption[] }) {
   const selected = options.find((option) => option.name === pokemon.name)
+  const [meta, setMeta] = useState<DisplayPokemonMeta | null>(() => displayPokemonCache.get(pokemon.name) ?? null)
+  useEffect(() => {
+    if (!pokemon.name || displayPokemonCache.has(pokemon.name)) return
+    let active = true
+    fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(pokemon.name)}`)
+      .then((response) => response.json() as Promise<{ id: number; types: { type: { name: string } }[] }>)
+      .then((data) => {
+        const nextMeta = { id: data.id, types: data.types.map(({ type }) => type.name) }
+        displayPokemonCache.set(pokemon.name, nextMeta)
+        if (active) setMeta(nextMeta)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [pokemon.name])
+  const evSummary = STAT_NAMES.filter(([key]) => (pokemon.evs[key] ?? 0) > 0).map(([key, label]) => `${pokemon.evs[key]} ${label}`).join(" / ")
   return (
-    <details className="group rounded-xl border border-border/70 bg-background/35">
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
-        {selected?.iconUrl ? <Image src={selected.iconUrl} alt="" width={40} height={40} unoptimized className="size-10 object-contain" /> : <div className="grid size-10 place-items-center rounded-lg bg-muted text-xs">?</div>}
+    <details className="group overflow-hidden rounded-xl border border-border/70 bg-background/35">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+        {selected?.iconUrl ? <Image src={selected.iconUrl} alt="" width={52} height={52} unoptimized className="size-12 object-contain" /> : <div className="grid size-12 place-items-center rounded-lg bg-muted text-xs">?</div>}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-heading text-sm font-semibold">{formatName(pokemon.name)}</p>
-          <p className="truncate text-xs text-muted-foreground">{pokemon.item ? formatName(pokemon.item) : "Sem item"}{pokemon.nature ? ` · ${pokemon.nature}` : ""}</p>
+          <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] text-muted-foreground">#{meta?.id ?? "---"}</span><p className="truncate font-heading text-base font-bold">{formatName(pokemon.name)}</p>{meta?.types.map((type) => <span key={type} className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-white" style={{ backgroundColor: TYPE_COLORS[type] }}>{type}</span>)}</div>
+          <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">Lv. 50 · {pokemon.nature ? formatName(pokemon.nature) : "Nature não informada"}</p>
         </div>
         <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="grid gap-3 border-t border-border/60 px-3 py-3 text-xs sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <p className="font-medium text-muted-foreground">Ability</p>
-          <p>{pokemon.ability || "Não informada"}</p>
-          <p className="mt-2 font-medium text-muted-foreground">Moveset</p>
-          <div className="flex flex-wrap gap-1.5">
-            {pokemon.moves.filter(Boolean).map((move) => <Badge key={move} variant="secondary">{formatName(move)}</Badge>)}
-            {pokemon.moves.filter(Boolean).length === 0 ? <span className="text-muted-foreground">Não informado</span> : null}
-          </div>
+      <div className="space-y-3 border-t border-border/60 px-3 py-3 text-xs">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Item</p><div className="flex items-center gap-2 font-semibold">{pokemon.item ? <Image src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(pokemon.item)}.png`} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : null}<span className="truncate">{pokemon.item ? formatName(pokemon.item) : "Sem item"}</span></div></div>
+          <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ability</p><p className="truncate font-semibold">{pokemon.ability ? formatName(pokemon.ability) : "Não informada"}</p></div>
         </div>
-        <div>
-          <p className="mb-1 font-medium text-muted-foreground">IVs / EVs</p>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 font-mono text-[10px]">
-            {STAT_NAMES.map(([key, label]) => <span key={key}>{label} {pokemon.ivs[key] ?? 0}/{pokemon.evs[key] ?? 0}</span>)}
-          </div>
-        </div>
+        <div><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Moveset</p><div className="grid gap-1.5 sm:grid-cols-2">{pokemon.moves.filter(Boolean).map((move) => <BuildMoveBadge key={move} move={move} />)}{pokemon.moves.filter(Boolean).length === 0 ? <span className="text-muted-foreground">Não informado</span> : null}</div></div>
+        <div className="border-t border-border/60 pt-2.5"><div className="mb-1.5 flex items-center justify-between"><p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">IVs / EVs</p><span className="font-mono text-[10px] text-muted-foreground">Lv. 50</span></div><div className="grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[10px] sm:grid-cols-3">{STAT_NAMES.map(([key, label]) => <span key={key}>{label} {pokemon.ivs[key] ?? 0}/{pokemon.evs[key] ?? 0}</span>)}</div>{evSummary ? <p className="mt-2 font-mono text-[10px] font-semibold text-foreground">{evSummary}</p> : null}</div>
       </div>
     </details>
   )
