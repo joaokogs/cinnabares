@@ -9,7 +9,7 @@ import { getMentionOptions, MentionTextarea } from "@/components/ui/mention-text
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { TypeIcon as PokemonTypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokemonBuildData, type BuildStat } from "@/hooks/use-pokemon-build-data"
-import { HIDDEN_POWER_MOVES, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
+import { getHiddenPowerType, HIDDEN_POWER_MOVES, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import { calculateBuildStat, maxBuildStat, natureEffect, NATURES, STAT_ORDER, TYPE_COLORS } from "@/lib/pokemon-build"
 import { cn } from "@/lib/utils"
 
@@ -61,8 +61,8 @@ function MoveTypeIcon({ type }: { type: string }) {
   return <PokemonTypeIcon type={type} size={22} className="shrink-0" />
 }
 
-function getMoveType(info: MoveInfo | null) {
-  return info?.type ?? "normal"
+function getMoveType(info: MoveInfo | null, name: string) {
+  return getHiddenPowerType(name) ?? info?.type ?? "normal"
 }
 
 function MoveCategoryBadge({ category }: { category: string }) {
@@ -166,7 +166,7 @@ function MoveMeta({ info, color }: { info: MoveInfo | null; color: string }) {
 
 function MoveSlot({ name, onClick, onClear }: { name: string; onClick: () => void; onClear: () => void }) {
   const info = useMoveInfo(name)
-  const type = getMoveType(info)
+  const type = getMoveType(info, name)
   const color = TYPE_COLORS[type]
   return <div className="group relative flex min-h-11 items-center gap-2 border border-border bg-muted/60 px-3 py-2.5" style={{ backgroundColor: `${color}15`, borderLeftColor: color, borderLeftWidth: 4 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left"><MoveTypeIcon type={type} /><span className="flex-1 truncate text-xs font-semibold">{info?.name ? titleCase(info.name) : name ? titleCase(name) : "Move"}</span><MoveMeta info={info} color={color} /></button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
 }
@@ -177,7 +177,7 @@ function MovePickerOption({ name, selected, onSelect }: { name: string; selected
     if (!moveInfoCache.has(name)) await loadMoveInfo(name)
     onSelect()
   }
-  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(info)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
+  return <button type="button" onClick={() => void handleSelect()} className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted"><MoveTypeIcon type={getMoveType(info, name)} /><span className="flex-1">{titleCase(info?.name ?? name)}</span>{selected ? <Check className="size-3.5 text-accent" /> : null}</button>
 }
 
 function MovesEditor({ build, availableMoves, onChange }: { build: BuildDraft; availableMoves: string[]; onChange: (build: BuildDraft) => void }) {

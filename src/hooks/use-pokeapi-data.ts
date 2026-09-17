@@ -31,6 +31,13 @@ export const HIDDEN_POWER_MOVES = [
   "hidden-power-water",
 ] as const
 
+export function getHiddenPowerType(name: string) {
+  const normalized = name.toLowerCase()
+  if (normalized === "hidden-power") return "normal"
+  const match = normalized.match(/^hidden-power-(bug|dark|dragon|electric|fighting|fire|flying|ghost|grass|ground|ice|poison|psychic|rock|steel|water)$/)
+  return match?.[1]
+}
+
 type NamedResource = {
   name: string
   url: string
