@@ -12,6 +12,7 @@ import {
   X,
   Swords,
   Trophy,
+  MessageCircle,
 } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
@@ -47,6 +48,7 @@ type NavItem = {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/posts", label: "Posts", icon: MessageCircle },
   { href: "/perfil", label: "Perfil", icon: User },
   { href: "/players", label: "Players", icon: Users },
   { href: "/guildas", label: "Guildas", icon: Shield },

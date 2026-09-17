@@ -258,4 +258,78 @@ export const bracketActionLog = pgTable("bracket_action_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+export type PostPokemonBuild = {
+  ivs: Record<string, number>
+  evs: Record<string, number>
+  moves: string[]
+}
+
+export const post = pgTable("post", {
+  id: text("id").primaryKey(),
+  authorId: text("author_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  ...timestamps,
+})
+
+export const postPokemon = pgTable("post_pokemon", {
+  id: text("id").primaryKey(),
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  slot: integer("slot").notNull(),
+  name: text("name").notNull(),
+  item: text("item").notNull().default(""),
+  ability: text("ability").notNull().default(""),
+  nature: text("nature").notNull().default(""),
+  ivs: jsonb("ivs").$type<Record<string, number>>().notNull().default({}),
+  evs: jsonb("evs").$type<Record<string, number>>().notNull().default({}),
+  moves: jsonb("moves").$type<string[]>().notNull().default([]),
+  ...timestamps,
+}, (table) => [unique("post_pokemon_slot_unique").on(table.postId, table.slot)])
+
+export const postLike = pgTable("post_like", {
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.postId, table.userId] })])
+
+export const postComment = pgTable("post_comment", {
+  id: text("id").primaryKey(),
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  ...timestamps,
+})
+
+export const postRepost = pgTable("post_repost", {
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.postId, table.userId] })])
+
+export const postBookmark = pgTable("post_bookmark", {
+  postId: text("post_id")
+    .notNull()
+    .references(() => post.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.postId, table.userId] })])
+
 export const authSchema = { user, session, account, verification }

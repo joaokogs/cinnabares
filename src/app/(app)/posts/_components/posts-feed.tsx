@@ -1,0 +1,262 @@
+"use client"
+
+import Image from "next/image"
+import {
+  Bookmark,
+  ChevronDown,
+  Heart,
+  LoaderCircle,
+  MessageCircle,
+  Plus,
+  Repeat2,
+  Send,
+  Trash2,
+} from "lucide-react"
+import { useMemo, useState, type FormEvent } from "react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
+import { usePokeApiData, type PokeOption } from "@/hooks/use-pokeapi-data"
+import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
+import { cn } from "@/lib/utils"
+
+const STAT_NAMES = [
+  ["hp", "HP"],
+  ["atk", "ATK"],
+  ["def", "DEF"],
+  ["spa", "SpA"],
+  ["spd", "SpD"],
+  ["spe", "SPE"],
+] as const
+
+type BuildDraft = {
+  name: string
+  item: string
+  ability: string
+  nature: string
+  ivs: Record<string, number>
+  evs: Record<string, number>
+  moves: string[]
+}
+
+function emptyBuild(): BuildDraft {
+  return {
+    name: "",
+    item: "",
+    ability: "",
+    nature: "",
+    ivs: Object.fromEntries(STAT_NAMES.map(([key]) => [key, 31])),
+    evs: Object.fromEntries(STAT_NAMES.map(([key]) => [key, 0])),
+    moves: ["", "", "", ""],
+  }
+}
+
+function formatName(name: string) {
+  return name.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")
+}
+
+function relativeDate(value: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime())
+  const minutes = Math.floor(elapsed / 60000)
+  if (minutes < 1) return "agora"
+  if (minutes < 60) return `há ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `há ${hours} h`
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+}
+
+function Avatar({ name, url, size = 36 }: { name: string; url: string | null; size?: number }) {
+  return (
+    <div className="grid shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 font-heading text-xs font-bold text-accent" style={{ width: size, height: size }}>
+      {url ? <Image src={url} alt="" width={size} height={size} unoptimized className="size-full object-cover" /> : name.slice(0, 1).toUpperCase()}
+    </div>
+  )
+}
+
+function ActionButton({ label, count, active, icon: Icon, onClick }: {
+  label: string
+  count: number
+  active: boolean
+  icon: typeof Heart
+  onClick: () => void
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} aria-pressed={active} className={cn("inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-accent", active && "bg-accent/10 text-accent")}>
+      <Icon className={cn("size-4", active && "fill-current")} aria-hidden="true" />
+      <span>{count}</span>
+    </button>
+  )
+}
+
+function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options: PokeOption[] }) {
+  const selected = options.find((option) => option.name === pokemon.name)
+  return (
+    <details className="group rounded-xl border border-border/70 bg-background/35">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        {selected?.iconUrl ? <Image src={selected.iconUrl} alt="" width={40} height={40} unoptimized className="size-10 object-contain" /> : <div className="grid size-10 place-items-center rounded-lg bg-muted text-xs">?</div>}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-heading text-sm font-semibold">{formatName(pokemon.name)}</p>
+          <p className="truncate text-xs text-muted-foreground">{pokemon.item ? formatName(pokemon.item) : "Sem item"}{pokemon.nature ? ` · ${pokemon.nature}` : ""}</p>
+        </div>
+        <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="grid gap-3 border-t border-border/60 px-3 py-3 text-xs sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <p className="font-medium text-muted-foreground">Ability</p>
+          <p>{pokemon.ability || "Não informada"}</p>
+          <p className="mt-2 font-medium text-muted-foreground">Moveset</p>
+          <div className="flex flex-wrap gap-1.5">
+            {pokemon.moves.filter(Boolean).map((move) => <Badge key={move} variant="secondary">{formatName(move)}</Badge>)}
+            {pokemon.moves.filter(Boolean).length === 0 ? <span className="text-muted-foreground">Não informado</span> : null}
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 font-medium text-muted-foreground">IVs / EVs</p>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 font-mono text-[10px]">
+            {STAT_NAMES.map(([key, label]) => <span key={key}>{label} {pokemon.ivs[key] ?? 0}/{pokemon.evs[key] ?? 0}</span>)}
+          </div>
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string) => Promise<void> }) {
+  const [comment, setComment] = useState("")
+  const [commenting, setCommenting] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+
+  async function submitComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!comment.trim() || commenting) return
+    setCommenting(true)
+    await onComment(post.id, comment)
+    setComment("")
+    setCommenting(false)
+  }
+
+  return (
+    <Card className="border-border/70 bg-card/90">
+      <CardHeader className="flex flex-row items-start gap-3 border-b border-border/60 pb-4">
+        <Avatar name={post.author.name} url={post.author.avatarUrl} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="font-heading text-sm font-semibold">{post.author.name}</span>
+            {post.author.username ? <span className="text-xs text-muted-foreground">@{post.author.username}</span> : null}
+            <span className="text-xs text-muted-foreground">· {relativeDate(post.createdAt)}</span>
+          </div>
+          <h2 className="mt-2 font-heading text-lg font-bold tracking-tight">{post.title}</h2>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-4">
+        <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{post.description}</p>
+        {post.pokemon.length > 0 ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">Build · {post.pokemon.length}/6</p>
+              <span className="text-[10px] text-muted-foreground">Clique para ver detalhes</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {post.pokemon.map((pokemon) => <BuildPokemonCard key={pokemon.id} pokemon={pokemon} options={options} />)}
+            </div>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between border-t border-border/60 pt-2">
+          <div className="flex items-center gap-1">
+            <ActionButton label="Curtir post" count={post.counts.likes} active={post.viewer.liked} icon={Heart} onClick={() => onAction(post.id, "like")} />
+            <ActionButton label="Comentar no post" count={post.counts.comments} active={expanded} icon={MessageCircle} onClick={() => setExpanded((value) => !value)} />
+            <ActionButton label="Repostar post" count={post.counts.reposts} active={post.viewer.reposted} icon={Repeat2} onClick={() => onAction(post.id, "repost")} />
+          </div>
+          <ActionButton label="Salvar post" count={post.counts.bookmarks} active={post.viewer.bookmarked} icon={Bookmark} onClick={() => onAction(post.id, "bookmark")} />
+        </div>
+        {expanded ? (
+          <div className="space-y-3 border-t border-border/60 pt-3">
+            {post.comments.map((item) => <div key={item.id} className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.body}</p></div></div>)}
+            {post.comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
+            <form className="flex gap-2" onSubmit={(event) => void submitComment(event)}>
+              <input value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} placeholder="Escreva um comentário..." className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />
+              <Button type="submit" size="icon" aria-label="Enviar comentário" disabled={!comment.trim() || commenting}>{commenting ? <LoaderCircle className="animate-spin" /> : <Send />}</Button>
+            </form>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BuildEditor({ build, index, options, onChange, onRemove, canRemove }: { build: BuildDraft; index: number; options: { pokemon: PokeOption[]; items: PokeOption[] }; onChange: (build: BuildDraft) => void; onRemove: () => void; canRemove: boolean }) {
+  function update<K extends keyof BuildDraft>(key: K, value: BuildDraft[K]) { onChange({ ...build, [key]: value }) }
+  function updateStat(kind: "ivs" | "evs", key: string, value: string) { onChange({ ...build, [kind]: { ...build[kind], [key]: Math.max(0, Math.min(kind === "ivs" ? 31 : 252, Number(value) || 0)) } }) }
+  return (
+    <div className="space-y-3 rounded-xl border border-border/70 bg-background/30 p-3">
+      <div className="flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent">Pokémon {index + 1}</p>{canRemove ? <button type="button" onClick={onRemove} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Remover Pokémon"><Trash2 className="size-4" /></button> : null}</div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1.5 text-xs font-medium">Pokémon<PokeAutocomplete id={`post-pokemon-${index}`} value={build.name} onChange={(value) => update("name", value)} options={options.pokemon} kind="pokemon" placeholder="Busque um Pokémon" required /></label>
+        <label className="space-y-1.5 text-xs font-medium">Item<PokeAutocomplete id={`post-item-${index}`} value={build.item} onChange={(value) => update("item", value)} options={options.items} kind="item" placeholder="Item segurado" /></label>
+        <label className="space-y-1.5 text-xs font-medium">Ability<input value={build.ability} onChange={(event) => update("ability", event.target.value)} maxLength={80} placeholder="Ex.: Intimidate" className="h-9 w-full rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
+        <label className="space-y-1.5 text-xs font-medium">Nature<input value={build.nature} onChange={(event) => update("nature", event.target.value)} maxLength={40} placeholder="Ex.: Jolly" className="h-9 w-full rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label>
+      </div>
+      <div><p className="mb-1.5 text-xs font-medium">Moveset</p><div className="grid gap-2 sm:grid-cols-4">{build.moves.map((move, moveIndex) => <input key={moveIndex} value={move} onChange={(event) => { const moves = [...build.moves]; moves[moveIndex] = event.target.value; update("moves", moves) }} maxLength={50} placeholder={`Move ${moveIndex + 1}`} className="h-8 min-w-0 rounded-lg border border-input bg-background/70 px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />)}</div></div>
+      <div><p className="mb-1.5 text-xs font-medium">IVs / EVs</p><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{STAT_NAMES.map(([key, label]) => <div key={key} className="space-y-1"><p className="text-center font-mono text-[10px] text-muted-foreground">{label}</p><input type="number" min={0} max={31} value={build.ivs[key]} onChange={(event) => updateStat("ivs", key, event.target.value)} aria-label={`${label} IV`} className="h-8 w-full rounded-lg border border-input bg-background/70 px-1 text-center text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><input type="number" min={0} max={252} value={build.evs[key]} onChange={(event) => updateStat("evs", key, event.target.value)} aria-label={`${label} EV`} className="h-8 w-full rounded-lg border border-input bg-background/70 px-1 text-center text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div>)}</div><p className="mt-1.5 text-[10px] text-muted-foreground">Limites: IV 0–31 · EV 0–252 por atributo.</p></div>
+    </div>
+  )
+}
+
+function CreatePost({ options, onCreated }: { options: { pokemon: PokeOption[]; items: PokeOption[] }; onCreated: () => Promise<void> }) {
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [builds, setBuilds] = useState<BuildDraft[]>([])
+  const [open, setOpen] = useState(true)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setPending(true)
+    try {
+      const response = await fetch("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, description, pokemon: builds.filter((build) => build.name.trim()) }) })
+      if (!response.ok) { const result = await response.json() as { error?: string }; throw new Error(result.error ?? "Não foi possível publicar o post.") }
+      setTitle(""); setDescription(""); setBuilds([]); await onCreated()
+    } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "Não foi possível publicar o post.") } finally { setPending(false) }
+  }
+
+  return (
+    <Card className="border-accent/25 bg-card/90 shadow-lg shadow-black/10">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Compartilhe com a comunidade</p><h2 className="mt-1 font-heading text-xl font-bold">Publique uma estratégia</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
+      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="space-y-1.5 text-sm font-medium">Descrição<textarea required minLength={1} maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explique a ideia da estratégia..." rows={3} className="w-full resize-y rounded-lg border border-input bg-background/70 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
+    </Card>
+  )
+}
+
+export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedItem[]; userName: string }) {
+  const [posts, setPosts] = useState(initialPosts)
+  const [loading, setLoading] = useState(false)
+  const { pokemon, items, loading: optionsLoading, error: optionsError } = usePokeApiData()
+  const options = useMemo(() => ({ pokemon, items }), [items, pokemon])
+
+  async function refreshPosts() {
+    setLoading(true)
+    try { const response = await fetch("/api/posts", { cache: "no-store" }); if (response.ok) { const result = await response.json() as { posts: PostFeedItem[] }; setPosts(result.posts) } } finally { setLoading(false) }
+  }
+
+  async function action(postId: string, actionName: "like" | "repost" | "bookmark") {
+    const response = await fetch(`/api/posts/${postId}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: actionName }) })
+    if (!response.ok) return
+    const result = await response.json() as { active: boolean }
+    const countName = actionName === "like" ? "likes" : actionName === "repost" ? "reposts" : "bookmarks"
+    const viewerName = actionName === "like" ? "liked" : actionName === "repost" ? "reposted" : "bookmarked"
+    setPosts((current) => current.map((post) => post.id === postId ? { ...post, counts: { ...post.counts, [countName]: Math.max(0, post.counts[countName] + (result.active ? 1 : -1)) }, viewer: { ...post.viewer, [viewerName]: result.active } } : post))
+  }
+
+  async function comment(postId: string, body: string) {
+    const response = await fetch(`/api/posts/${postId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) })
+    if (response.ok) await refreshPosts()
+  }
+
+  return (
+    <main className="relative min-h-screen flex-1 overflow-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5"><CreatePost options={options} onCreated={refreshPosts} />{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}{posts.length > 0 ? posts.map((post) => <PostCard key={post.id} post={post} options={pokemon} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Ainda não há posts</p><p className="mt-2 text-sm text-muted-foreground">{userName}, publique a primeira estratégia da comunidade.</p></CardContent></Card>}</div></section></main>
+  )
+}
