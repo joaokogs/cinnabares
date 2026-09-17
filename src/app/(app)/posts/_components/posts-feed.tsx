@@ -200,7 +200,7 @@ function PostCard({ post, options, mentionOptions, onAction, onComment }: { post
   }
 
   return (
-    <Card className="border-border/70 bg-card/90">
+    <Card className="overflow-visible border-border/70 bg-card/90">
       <CardHeader className="flex flex-row items-start gap-3 border-b border-border/60 pb-4">
         <Avatar name={post.author.name} url={post.author.avatarUrl} />
         <div className="min-w-0 flex-1">
@@ -295,7 +295,7 @@ function CreatePost({ options, mentionOptions, onCreated }: { options: BuildEdit
   }
 
   return (
-    <Card className="border-accent/25 bg-card/90 shadow-lg shadow-black/10">
+    <Card className="overflow-visible border-accent/25 bg-card/90 shadow-lg shadow-black/10">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Compartilhe com a comunidade</p><h2 className="mt-1 font-heading text-xl font-bold">Publique uma estratégia</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
       {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<MentionTextarea value={description} onChange={setDescription} options={mentionOptions} required maxLength={5000} placeholder="Use @ para mencionar golpes, itens, natures..." rows={4} /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
     </Card>
