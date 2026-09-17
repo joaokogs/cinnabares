@@ -28,6 +28,10 @@ type MentionDetails = {
   subtitle?: string
   lines: string[]
   type?: string
+  natureStats?: {
+    increased: string | null
+    decreased: string | null
+  }
 }
 
 type ApiResource = {
@@ -83,7 +87,15 @@ function MentionHoverCard({ option }: { option: MentionOption }) {
             : option.kind === "nature"
               ? [`Aumenta: ${titleCase(data.increased_stat?.name ?? "nenhum")}`, `Reduz: ${titleCase(data.decreased_stat?.name ?? "nenhum")}`]
               : [getEffect(data) || "Descrição não informada."]
-        const nextDetails = { title: titleCase(data.name ?? option.name), subtitle: typeNames, lines, type: data.type?.name }
+        const nextDetails = {
+          title: titleCase(data.name ?? option.name),
+          subtitle: typeNames,
+          lines,
+          type: data.type?.name,
+          natureStats: option.kind === "nature"
+            ? { increased: data.increased_stat?.name ?? null, decreased: data.decreased_stat?.name ?? null }
+            : undefined,
+        }
         detailsCache.set(cacheKey, nextDetails)
         if (active) setDetails(nextDetails)
       })
@@ -92,7 +104,7 @@ function MentionHoverCard({ option }: { option: MentionOption }) {
   }, [cacheKey, option.kind, option.name])
 
   const hiddenPowerType = getHiddenPowerType(option.name)
-  return <span className="group/mention relative inline-flex cursor-help font-semibold text-accent underline decoration-accent/40 underline-offset-2"><span>@{titleCase(option.name)}</span><span className="pointer-events-none invisible absolute bottom-full left-0 z-50 mb-2 w-64 translate-y-1 rounded-lg border border-accent/30 bg-popover p-3 text-left opacity-0 shadow-xl transition-all group-hover/mention:visible group-hover/mention:translate-y-0 group-hover/mention:opacity-100"><span className="mb-1 flex items-center gap-2 font-heading text-xs font-bold text-popover-foreground">{option.iconUrl ? <Image src={option.iconUrl} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : details?.type || hiddenPowerType ? <TypeIcon type={details?.type ?? hiddenPowerType ?? "normal"} size={16} /> : null}{details?.title ?? titleCase(option.name)}</span>{details?.subtitle ? <span className="block text-[10px] font-semibold text-accent">{details.subtitle}</span> : null}<span className="mt-1.5 block space-y-1 text-[10px] leading-4 text-muted-foreground">{details ? details.lines.map((line) => <span key={line} className="block">{line}</span>) : <span className="block">Carregando dados...</span>}</span></span></span>
+  return <span className="group/mention relative inline-flex cursor-help font-semibold text-accent underline decoration-accent/40 underline-offset-2"><span>@{titleCase(option.name)}</span><span className="pointer-events-none invisible absolute bottom-full left-0 z-50 mb-2 w-64 translate-y-1 rounded-lg border border-accent/30 bg-popover p-3 text-left opacity-0 shadow-xl transition-all group-hover/mention:visible group-hover/mention:translate-y-0 group-hover/mention:opacity-100"><span className="mb-1 flex items-center gap-2 font-heading text-xs font-bold text-popover-foreground">{option.iconUrl ? <Image src={option.iconUrl} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : details?.type || hiddenPowerType ? <TypeIcon type={details?.type ?? hiddenPowerType ?? "normal"} size={16} /> : null}{details?.title ?? titleCase(option.name)}</span>{details?.subtitle ? <span className="block text-[10px] font-semibold text-accent">{details.subtitle}</span> : null}{details?.natureStats ? <span className="mt-1.5 flex flex-wrap gap-2 text-[10px] font-bold">{details.natureStats.increased ? <span className="text-emerald-500">↑ {titleCase(details.natureStats.increased)}</span> : null}{details.natureStats.decreased ? <span className="text-red-400">↓ {titleCase(details.natureStats.decreased)}</span> : null}{!details.natureStats.increased && !details.natureStats.decreased ? <span className="text-muted-foreground">Nature neutra</span> : null}</span> : <span className="mt-1.5 block space-y-1 text-[10px] leading-4 text-muted-foreground">{details ? details.lines.map((line) => <span key={line} className="block">{line}</span>) : <span className="block">Carregando dados...</span>}</span>}</span></span>
 }
 
 export function RichMentionText({ text, options }: { text: string; options: MentionOption[] }) {

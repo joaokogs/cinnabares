@@ -25,7 +25,7 @@ import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
-import { NATURES, TYPE_COLORS } from "@/lib/pokemon-build"
+import { TYPE_COLORS } from "@/lib/pokemon-build"
 import { cn } from "@/lib/utils"
 import { TeamBuildEditor as BuildEditor } from "./build-editor"
 
@@ -129,21 +129,6 @@ function BuildMoveBadge({ move }: { move: string }) {
   return <div className="flex min-w-0 items-center gap-2 border border-border/70 bg-muted/70 px-2.5 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><TypeIcon type={type} size={18} className="shrink-0" /><span className="truncate font-mono text-[11px] font-semibold">{formatName(move)}</span></div>
 }
 
-function NatureEffects({ nature }: { nature: string }) {
-  const modifier = NATURES[nature]
-  if (!modifier || modifier.boost === modifier.reduce) return null
-
-  const boostLabel = STAT_NAMES.find(([key]) => key === modifier.boost)?.[1] ?? modifier.boost.toUpperCase()
-  const reduceLabel = STAT_NAMES.find(([key]) => key === modifier.reduce)?.[1] ?? modifier.reduce.toUpperCase()
-
-  return (
-    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold">
-      <span className="text-emerald-500" title={`Aumenta ${boostLabel}`}>↑ {boostLabel}</span>
-      <span className="text-red-400" title={`Reduz ${reduceLabel}`}>↓ {reduceLabel}</span>
-    </span>
-  )
-}
-
 // eslint-disable-next-line complexity
 function BuildPokemonCard({ pokemon, options, mentionOptions, expanded, onToggle }: { pokemon: PostPokemon; options: PokeOption[]; mentionOptions: MentionOption[]; expanded: boolean; onToggle: () => void }) {
   const selected = options.find((option) => option.name === pokemon.name)
@@ -169,7 +154,6 @@ function BuildPokemonCard({ pokemon, options, mentionOptions, expanded, onToggle
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] text-muted-foreground">#{meta?.id ?? "---"}</span><p className="truncate font-heading text-base font-bold">{formatName(pokemon.name)}</p>{meta?.types.map((type) => <span key={type} className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-white" style={{ backgroundColor: TYPE_COLORS[type] }}>{type}</span>)}</div>
           <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">Lv. 50 · {pokemon.nature ? formatName(pokemon.nature) : "Nature não informada"}</p>
-          {pokemon.nature ? <NatureEffects nature={pokemon.nature} /> : null}
         </div>
         <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
