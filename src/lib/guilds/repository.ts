@@ -1,4 +1,5 @@
 import { and, eq, ne, or, sql } from "drizzle-orm"
+import { randomUUID } from "node:crypto"
 
 import { db } from "@/db"
 import { guild, guildInvite, guildMember, guildMemberRole, guildRole, user } from "@/db/schema"
@@ -73,6 +74,48 @@ export async function findDefaultMemberRole(guildId: string) {
     .where(and(eq(guildRole.guildId, guildId), eq(guildRole.isDefault, true), eq(guildRole.name, "Member")))
     .limit(1)
   return row
+}
+
+export async function ensureDefaultMemberRole(guildId: string) {
+  const defaultRole = await findDefaultMemberRole(guildId)
+  if (defaultRole) return defaultRole
+
+  const [existingMemberRole] = await db
+    .select({ id: guildRole.id })
+    .from(guildRole)
+    .where(and(eq(guildRole.guildId, guildId), eq(guildRole.name, "Member")))
+    .limit(1)
+  if (existingMemberRole) return existingMemberRole
+
+  const [guildRow] = await db
+    .select({ founderId: guild.founderId })
+    .from(guild)
+    .where(eq(guild.id, guildId))
+    .limit(1)
+  if (!guildRow) return undefined
+
+  const [createdRole] = await db
+    .insert(guildRole)
+    .values({
+      id: randomUUID(),
+      guildId,
+      name: "Member",
+      position: 1,
+      isDefault: true,
+      permissions: {},
+      createdBy: guildRow.founderId,
+    })
+    .onConflictDoNothing({ target: [guildRole.guildId, guildRole.name] })
+    .returning({ id: guildRole.id })
+
+  if (createdRole) return createdRole
+
+  const [racedRole] = await db
+    .select({ id: guildRole.id })
+    .from(guildRole)
+    .where(and(eq(guildRole.guildId, guildId), eq(guildRole.name, "Member")))
+    .limit(1)
+  return racedRole
 }
 
 export async function joinGuildViaInvite(input: { inviteId: string; userId: string; roleId: string }) {

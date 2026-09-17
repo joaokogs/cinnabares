@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { createPortal } from "react-dom"
 import { LoaderCircle, Search, UserPlus } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react"
 
@@ -8,13 +9,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getErrorMessage, readApiError } from "@/lib/error-messages"
-import { cn } from "@/lib/utils"
 
 type PlayerOption = {
   id: string
   name: string
   username: string | null
   avatarUrl: string | null
+}
+
+type DropdownPosition = {
+  left: number
+  top: number
+  width: number
+  maxHeight: number
 }
 
 export function PlayerInvitePanel({ guildId }: { guildId: string }) {
@@ -25,7 +32,7 @@ export function PlayerInvitePanel({ guildId }: { guildId: string }) {
   const [isInviting, setIsInviting] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [dropUp, setDropUp] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useLayoutEffect(() => {
@@ -34,9 +41,22 @@ export function PlayerInvitePanel({ guildId }: { guildId: string }) {
     const updatePlacement = () => {
       const rect = inputRef.current?.getBoundingClientRect()
       if (!rect) return
-      const spaceBelow = window.innerHeight - rect.bottom
-      const spaceAbove = rect.top
-      setDropUp(spaceBelow < 280 && spaceAbove > spaceBelow)
+
+      const gap = 4
+      const preferredHeight = 256
+      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap)
+      const spaceAbove = Math.max(0, rect.top - gap)
+      const openUp = spaceBelow < 280 && spaceAbove > spaceBelow
+      const availableSpace = openUp ? spaceAbove : spaceBelow
+      const maxHeight = Math.max(96, Math.min(preferredHeight, availableSpace))
+      const top = openUp ? Math.max(8, rect.top - gap - maxHeight) : rect.bottom + gap
+
+      setDropdownPosition({
+        left: rect.left,
+        top,
+        width: rect.width,
+        maxHeight,
+      })
     }
 
     updatePlacement()
@@ -111,5 +131,112 @@ export function PlayerInvitePanel({ guildId }: { guildId: string }) {
     }
   }
 
-  return <Card className="border-border/70 bg-card/90"><CardHeader><CardTitle className="flex items-center gap-2"><UserPlus className="size-5 text-accent" aria-hidden="true" /> Convidar player</CardTitle><CardDescription>Pesquise pelo nome ou username e envie um convite individual.</CardDescription></CardHeader><CardContent className="space-y-4"><form className="space-y-3" onSubmit={(event) => void handleInvite(event)}><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input ref={inputRef} value={query} onChange={(event) => handleQueryChange(event.target.value)} placeholder="Pesquisar player..." aria-label="Pesquisar player para convidar" autoComplete="off" className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" />{!selectedPlayer && query.trim().length >= 2 ? <div className={cn("absolute inset-x-0 z-20 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-xl", dropUp ? "bottom-full mb-1" : "top-full mt-1")}>{isSearching ? <p className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin" /> Pesquisando...</p> : players.length > 0 ? <div role="listbox" aria-label="Players encontrados">{players.map((player) => <button key={player.id} type="button" role="option" aria-selected={false} onClick={() => { setSelectedPlayer(player); setQuery(player.name); setPlayers([]) }} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/10"><div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-xs font-bold text-accent">{player.avatarUrl ? <Image src={player.avatarUrl} alt="" width={32} height={32} unoptimized className="size-full object-cover" /> : player.name.slice(0, 1).toUpperCase()}</div><span className="min-w-0"><span className="block truncate text-sm font-medium">{player.name}</span><span className="block truncate text-xs text-muted-foreground">@{player.username ?? "player"}</span></span></button>)}</div> : <p className="px-3 py-3 text-xs text-muted-foreground">Nenhum player encontrado.</p>}</div> : null}</div>{selectedPlayer ? <p className="text-xs text-muted-foreground">Selecionado: <span className="font-semibold text-foreground">{selectedPlayer.name}</span> @{selectedPlayer.username ?? "player"}</p> : null}<Button type="submit" disabled={isInviting}>{isInviting ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <UserPlus aria-hidden="true" />} {isInviting ? "Enviando..." : "Enviar convite"}</Button></form>{success ? <p className="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-400" role="status">{success}</p> : null}</CardContent><Dialog open={Boolean(error)} onOpenChange={(open) => { if (!open) setError(null) }}><DialogContent><DialogHeader><DialogTitle>Não foi possível enviar o convite</DialogTitle><DialogDescription>{error}</DialogDescription></DialogHeader><DialogFooter><Button type="button" onClick={() => setError(null)}>Entendi</Button></DialogFooter></DialogContent></Dialog></Card>
+  const suggestionDropdown =
+    !selectedPlayer && query.trim().length >= 2 && dropdownPosition && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="z-[100] overflow-y-auto rounded-lg border border-border bg-popover shadow-xl"
+            style={{
+              position: "fixed",
+              left: dropdownPosition.left,
+              top: dropdownPosition.top,
+              width: dropdownPosition.width,
+              maxHeight: dropdownPosition.maxHeight,
+            }}
+          >
+            {isSearching ? (
+              <p className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                <LoaderCircle className="size-3.5 animate-spin" /> Pesquisando...
+              </p>
+            ) : players.length > 0 ? (
+              <div role="listbox" aria-label="Players encontrados">
+                {players.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => {
+                      setSelectedPlayer(player)
+                      setQuery(player.name)
+                      setPlayers([])
+                    }}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/10"
+                  >
+                    <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-xs font-bold text-accent">
+                      {player.avatarUrl ? (
+                        <Image src={player.avatarUrl} alt="" width={32} height={32} unoptimized className="size-full object-cover" />
+                      ) : (
+                        player.name.slice(0, 1).toUpperCase()
+                      )}
+                    </div>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{player.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">@{player.username ?? "player"}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="px-3 py-3 text-xs text-muted-foreground">Nenhum player encontrado.</p>
+            )}
+          </div>,
+          document.body,
+        )
+      : null
+
+  return (
+    <>
+      <Card className="border-border/70 bg-card/90">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="size-5 text-accent" aria-hidden="true" /> Convidar player
+          </CardTitle>
+          <CardDescription>Pesquise pelo nome ou username e envie um convite individual.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form className="space-y-3" onSubmit={(event) => void handleInvite(event)}>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(event) => handleQueryChange(event.target.value)}
+                placeholder="Pesquisar player..."
+                aria-label="Pesquisar player para convidar"
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+              />
+            </div>
+            {selectedPlayer ? (
+              <p className="text-xs text-muted-foreground">
+                Selecionado: <span className="font-semibold text-foreground">{selectedPlayer.name}</span> @{selectedPlayer.username ?? "player"}
+              </p>
+            ) : null}
+            <Button type="submit" disabled={isInviting}>
+              {isInviting ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
+              {isInviting ? "Enviando..." : "Enviar convite"}
+            </Button>
+          </form>
+          {success ? (
+            <p className="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-400" role="status">
+              {success}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+      {suggestionDropdown}
+      <Dialog open={Boolean(error)} onOpenChange={(open) => { if (!open) setError(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Não foi possível enviar o convite</DialogTitle>
+            <DialogDescription>{error}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" onClick={() => setError(null)}>Entendi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import {
-  findDefaultMemberRole,
+  ensureDefaultMemberRole,
   findGuildTag,
   findInviteByToken,
   findMembershipByUser,
@@ -36,7 +36,7 @@ function handleJoinError(error: unknown) {
 }
 
 async function joinViaInvite(invite: GuildInviteRow, userId: string) {
-  const memberRole = await findDefaultMemberRole(invite.guildId)
+  const memberRole = await ensureDefaultMemberRole(invite.guildId)
   if (!memberRole) {
     return Response.json({ error: "A guilda não está pronta para receber novos membros. Avise o fundador." }, { status: 500 })
   }
