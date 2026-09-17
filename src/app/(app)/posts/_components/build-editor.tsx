@@ -44,12 +44,35 @@ type MoveInfo = {
   category: string
   power: number | null
   pp: number | null
+  ppMax: number | null
 }
 
 const moveInfoCache = new Map<string, MoveInfo>()
 
 function titleCase(name: string) {
   return name.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")
+}
+
+const TYPE_ICON_IDS: Record<string, number> = {
+  normal: 1, fighting: 2, flying: 3, poison: 4, ground: 5, rock: 6, bug: 7,
+  ghost: 8, steel: 9, fire: 10, water: 11, grass: 12, electric: 13,
+  psychic: 14, ice: 15, dragon: 16, dark: 17, fairy: 18,
+}
+
+function MoveTypeIcon({ type }: { type: string }) {
+  const typeId = TYPE_ICON_IDS[type] ?? TYPE_ICON_IDS.normal
+  return <span aria-label={`${type} type`} className="size-[22px] shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-ix/scarlet-violet/${typeId}.png)` }} />
+}
+
+function MoveCategoryBadge({ category }: { category: string }) {
+  const styles = {
+    physical: "bg-orange-500/15 text-orange-400",
+    special: "bg-blue-500/15 text-blue-400",
+    status: "bg-violet-500/15 text-violet-400",
+  }
+  const labels = { physical: "Phy", special: "Spc", status: "Sta" }
+  const key = category in styles ? category as keyof typeof styles : "status"
+  return <span className={cn("inline-flex items-center px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-none", styles[key])}>{labels[key]}</span>
 }
 
 function useMoveInfo(name: string) {
@@ -60,7 +83,7 @@ function useMoveInfo(name: string) {
     fetch(`https://pokeapi.co/api/v2/move/${encodeURIComponent(name)}`)
       .then((response) => response.json() as Promise<{ name: string; type: { name: string }; damage_class: { name: string }; power: number | null; pp: number | null }>)
       .then((move) => {
-        const nextData = { name: move.name, type: move.type.name, category: move.damage_class.name, power: move.power, pp: move.pp }
+        const nextData = { name: move.name, type: move.type.name, category: move.damage_class.name, power: move.power, pp: move.pp, ppMax: move.pp === null ? null : move.pp + Math.ceil(move.pp / 5) * 3 }
         moveInfoCache.set(name, nextData)
         if (active) setData(nextData)
       })
@@ -71,18 +94,19 @@ function useMoveInfo(name: string) {
 }
 
 function NaturePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const filtered = Object.keys(NATURES).filter((nature) => nature.includes(query.toLowerCase().trim()))
   return (
-    <Popover onOpenChange={(open) => { if (!open) setQuery("") }}>
-      <PopoverTrigger className="flex h-8 w-full items-center gap-2 border border-border bg-background/70 px-3 text-left text-xs transition-colors hover:bg-muted">
+    <Popover open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setQuery("") }}>
+      <PopoverTrigger type="button" className="flex h-8 w-full items-center gap-2 border border-border bg-background/70 px-3 text-left text-xs transition-colors hover:bg-muted">
         <span className={cn("font-medium", !value && "text-muted-foreground")}>{value ? titleCase(value) : "Nature"}</span>
         <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[280px] overflow-hidden p-0">
         <div className="flex items-center border-b border-border px-3"><Search className="mr-2 size-3.5 text-muted-foreground" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search nature..." className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" /></div>
         <div className="max-h-64 overflow-y-auto p-1">
-          {filtered.map((nature) => { const modifier = NATURES[nature]; const neutral = modifier.boost === modifier.reduce; return <PopoverTrigger key={nature} asChild><button type="button" onClick={() => onChange(nature)} className={cn("flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted", value === nature && "bg-muted")}><span className="font-semibold">{titleCase(nature)}</span>{neutral ? <span className="ml-auto text-[10px] text-muted-foreground">Neutral</span> : <span className="ml-auto flex gap-1"><span className="rounded-sm bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-500">↑{modifier.boost.toUpperCase()}</span><span className="rounded-sm bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400">↓{modifier.reduce.toUpperCase()}</span></span>}</button></PopoverTrigger> })}
+          {filtered.map((nature) => { const modifier = NATURES[nature]; const neutral = modifier.boost === modifier.reduce; return <button key={nature} type="button" onClick={() => { onChange(nature); setOpen(false) }} className={cn("flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted", value === nature && "bg-muted")}><span className="font-semibold">{titleCase(nature)}</span>{neutral ? <span className="ml-auto text-[10px] text-muted-foreground">Neutral</span> : <span className="ml-auto flex gap-1"><span className="rounded-sm bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-500">↑{modifier.boost.toUpperCase()}</span><span className="rounded-sm bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400">↓{modifier.reduce.toUpperCase()}</span></span>}</button> })}
         </div>
       </PopoverContent>
     </Popover>
@@ -90,12 +114,13 @@ function NaturePicker({ value, onChange }: { value: string; onChange: (value: st
 }
 
 function AbilityPicker({ value, abilities, onChange }: { value: string; abilities: string[]; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const filtered = abilities.filter((ability) => ability.includes(query.toLowerCase().trim()))
   return (
-    <Popover onOpenChange={(open) => { if (!open) setQuery("") }}>
-      <PopoverTrigger className="flex h-8 w-full items-center gap-2 border border-border bg-background/70 px-3 text-left text-xs transition-colors hover:bg-muted"><span className={cn("truncate font-medium", !value && "text-muted-foreground")}>{value ? titleCase(value) : "Ability"}</span><ChevronDown className="ml-auto size-3.5 shrink-0 text-muted-foreground" /></PopoverTrigger>
-      <PopoverContent align="start" className="w-[280px] overflow-hidden p-0"><div className="flex items-center border-b border-border px-3"><Search className="mr-2 size-3.5 text-muted-foreground" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ability..." className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" /></div><div className="max-h-56 overflow-y-auto p-1">{filtered.map((ability) => <PopoverTrigger key={ability} asChild><button type="button" onClick={() => onChange(ability)} className={cn("flex w-full items-center rounded-md px-2.5 py-2 text-left text-xs hover:bg-muted", value === ability && "bg-muted")}>{titleCase(ability)}{value === ability ? <Check className="ml-auto size-3.5" /> : null}</button></PopoverTrigger>)}</div></PopoverContent>
+    <Popover open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setQuery("") }}>
+      <PopoverTrigger type="button" className="flex h-8 w-full items-center gap-2 border border-border bg-background/70 px-3 text-left text-xs transition-colors hover:bg-muted"><span className={cn("truncate font-medium", !value && "text-muted-foreground")}>{value ? titleCase(value) : "Ability"}</span><ChevronDown className="ml-auto size-3.5 shrink-0 text-muted-foreground" /></PopoverTrigger>
+      <PopoverContent align="start" className="w-[280px] overflow-hidden p-0"><div className="flex items-center border-b border-border px-3"><Search className="mr-2 size-3.5 text-muted-foreground" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ability..." className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" /></div><div className="max-h-56 overflow-y-auto p-1">{filtered.map((ability) => <button key={ability} type="button" onClick={() => { onChange(ability); setOpen(false) }} className={cn("flex w-full items-center rounded-md px-2.5 py-2 text-left text-xs hover:bg-muted", value === ability && "bg-muted")}>{titleCase(ability)}{value === ability ? <Check className="ml-auto size-3.5" /> : null}</button>)}</div></PopoverContent>
     </Popover>
   )
 }
@@ -118,10 +143,15 @@ function StatEditor({ build, data, onChange }: { build: BuildDraft; data: NonNul
   )
 }
 
+function MoveMeta({ info, color }: { info: MoveInfo | null; color: string }) {
+  if (!info) return null
+  return <span className="flex shrink-0 items-center gap-2">{info.category !== "status" && info.power !== null ? <span className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold" style={{ backgroundColor: `${color}25`, color }}>{info.power}</span> : null}{info.ppMax !== null ? <span className="font-mono text-[10px] text-muted-foreground">{info.ppMax}</span> : null}<MoveCategoryBadge category={info.category} /></span>
+}
+
 function MoveSlot({ name, onClick, onClear }: { name: string; onClick: () => void; onClear: () => void }) {
   const info = useMoveInfo(name)
   const color = TYPE_COLORS[info?.type ?? "normal"]
-  return <div className="group relative flex min-h-10 items-center gap-2 border border-border bg-muted/60 px-3 py-2" style={{ borderLeftColor: color, borderLeftWidth: 3 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left"><span className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-black text-white" style={{ backgroundColor: color }}>{(info?.type ?? "—").slice(0, 2).toUpperCase()}</span><span className="truncate text-xs font-semibold">{info?.name ? titleCase(info.name) : name ? titleCase(name) : "Move"}</span>{info?.power ? <span className="ml-auto font-mono text-[10px] text-muted-foreground">{info.power}</span> : null}</button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
+  return <div className="group relative flex min-h-11 items-center gap-2 border border-border bg-muted/60 px-3 py-2.5" style={{ backgroundColor: `${color}15`, borderLeftColor: color, borderLeftWidth: 4 }}><button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left"><MoveTypeIcon type={info?.type ?? "normal"} /><span className="flex-1 truncate text-xs font-semibold">{info?.name ? titleCase(info.name) : name ? titleCase(name) : "Move"}</span><MoveMeta info={info} color={color} /></button>{name ? <button type="button" onClick={onClear} className="absolute right-1 hidden size-5 place-items-center text-muted-foreground hover:text-destructive group-hover:grid" aria-label="Remover move"><X className="size-3" /></button> : null}</div>
 }
 
 function MovesEditor({ build, availableMoves, onChange }: { build: BuildDraft; availableMoves: string[]; onChange: (build: BuildDraft) => void }) {
