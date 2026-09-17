@@ -246,11 +246,12 @@ function buildCommentTree(comments: Array<{
     byParent.set(comment.parentId, children)
   }
   function mapComments(parentId: string | null): PostComment[] {
-    return (byParent.get(parentId) ?? []).slice().sort((first, second) => Number(Boolean(second.pinnedAt)) - Number(Boolean(first.pinnedAt)) || second.createdAt.getTime() - first.createdAt.getTime()).slice(0, parentId ? 10 : 3).map((comment) => ({
+    return (byParent.get(parentId) ?? []).slice().sort((first, second) => Number(Boolean(second.pinnedAt)) - Number(Boolean(first.pinnedAt)) || (first.pinnedAt && second.pinnedAt ? first.pinnedAt.getTime() - second.pinnedAt.getTime() : second.createdAt.getTime() - first.createdAt.getTime())).slice(0, parentId ? 10 : 3).map((comment) => ({
       id: comment.id,
       parentId: comment.parentId,
       body: comment.body,
       createdAt: serializeDate(comment.createdAt),
+      pinnedAt: comment.pinnedAt ? serializeDate(comment.pinnedAt) : null,
       likes: Number(comment.likes),
       liked: Boolean(comment.liked),
       pinned: Boolean(comment.pinnedAt),

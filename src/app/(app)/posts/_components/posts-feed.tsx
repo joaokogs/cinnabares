@@ -170,7 +170,17 @@ function BuildPokemonCard({ pokemon, options, mentionOptions }: { pokemon: PostP
   )
 }
 
-function CommentItem({ item, postId, mentionOptions, canPin, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; postId: string; mentionOptions: MentionOption[]; canPin: boolean; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
+function sortComments(comments: PostFeedItem["comments"]) {
+  return comments.slice().sort((first, second) => Number(second.pinned) - Number(first.pinned) || (first.pinnedAt && second.pinnedAt ? new Date(first.pinnedAt).getTime() - new Date(second.pinnedAt).getTime() : new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()))
+}
+
+type CommentPinOverride = { pinned: boolean; pinnedAt: string | null }
+
+function applyPinOverrides(comments: PostFeedItem["comments"], overrides: Record<string, CommentPinOverride>): PostFeedItem["comments"] {
+  return sortComments(comments.map((comment) => ({ ...comment, ...(overrides[comment.id] ?? {}), replies: applyPinOverrides(comment.replies, overrides) })))
+}
+
+function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; postId: string; mentionOptions: MentionOption[]; canPin: boolean; onPinChange: (commentId: string, pinned: boolean, pinnedAt: string | null) => void; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
   const [reply, setReply] = useState("")
   const [replying, setReplying] = useState(false)
   const [sending, setSending] = useState(false)
@@ -179,6 +189,7 @@ function CommentItem({ item, postId, mentionOptions, canPin, onReply, depth = 0 
   const [likePending, setLikePending] = useState(false)
   const [pinned, setPinned] = useState(item.pinned)
   const [pinPending, setPinPending] = useState(false)
+  const [pinnedAt, setPinnedAt] = useState(item.pinnedAt)
 
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -202,18 +213,35 @@ function CommentItem({ item, postId, mentionOptions, canPin, onReply, depth = 0 
     setLikePending(false)
   }
 
+  function applyPinState(nextPinned: boolean, nextPinnedAt: string | null) {
+    setPinned(nextPinned)
+    setPinnedAt(nextPinnedAt)
+    onPinChange(item.id, nextPinned, nextPinnedAt)
+  }
+
   async function togglePin() {
     if (pinPending) return
     setPinPending(true)
-    const response = await fetch(`/api/posts/${postId}/comments/${item.id}/pin`, { method: "POST" })
-    if (response.ok) {
+    const previousPinned = pinned
+    const previousPinnedAt = pinnedAt
+    const nextPinned = !previousPinned
+    const nextPinnedAt = nextPinned ? new Date().toISOString() : null
+    applyPinState(nextPinned, nextPinnedAt)
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments/${item.id}/pin`, { method: "POST" })
+      if (!response.ok) throw new Error("Não foi possível atualizar o comentário")
       const result = await response.json() as { pinned: boolean }
-      setPinned(result.pinned)
+      if (result.pinned !== nextPinned) {
+        applyPinState(result.pinned, result.pinned ? nextPinnedAt : null)
+      }
+    } catch {
+      applyPinState(previousPinned, previousPinnedAt)
+    } finally {
+      setPinPending(false)
     }
-    setPinPending(false)
   }
 
-  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => void toggleLike()} disabled={likePending} className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-accent", liked && "text-accent")} aria-label={liked ? "Remover like do comentário" : "Curtir comentário"}><Heart className={cn("size-3", liked && "fill-current")} /> {likes}</button>{pinned ? <span className="inline-flex items-center gap-1 text-accent"><Pin className="size-3" /> Fixado</span> : null}{canPin ? <button type="button" onClick={() => void togglePin()} disabled={pinPending} className="inline-flex items-center gap-1 text-muted-foreground hover:text-accent"><Pin className="size-3" /> {pinned ? "Desfixar" : "Fixar"}</button> : null}<button type="button" onClick={() => setReplying((value) => !value)} className="inline-flex items-center gap-1 text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} postId={postId} mentionOptions={mentionOptions} canPin={canPin} onReply={onReply} depth={depth + 1} />)}</div>
+  return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => void toggleLike()} disabled={likePending} className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-accent", liked && "text-accent")} aria-label={liked ? "Remover like do comentário" : "Curtir comentário"}><Heart className={cn("size-3", liked && "fill-current")} /> {likes}</button>{pinned ? <span className="inline-flex items-center gap-1 text-accent"><Pin className="size-3" /> Fixado</span> : null}{canPin ? <button type="button" onClick={() => void togglePin()} disabled={pinPending} className="inline-flex items-center gap-1 text-muted-foreground hover:text-accent"><Pin className="size-3" /> {pinned ? "Desfixar" : "Fixar"}</button> : null}<button type="button" onClick={() => setReplying((value) => !value)} className="inline-flex items-center gap-1 text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} postId={postId} mentionOptions={mentionOptions} canPin={canPin} onPinChange={onPinChange} onReply={onReply} depth={depth + 1} />)}</div>
 }
 
 export function LinkedPostCard({ post, options, mentionOptions, canPin = false, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; canPin?: boolean; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
@@ -224,6 +252,8 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
   const [comment, setComment] = useState("")
   const [commenting, setCommenting] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [pinOverrides, setPinOverrides] = useState<Record<string, CommentPinOverride>>({})
+  const comments = useMemo(() => applyPinOverrides(post.comments, pinOverrides), [pinOverrides, post.comments])
 
   async function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -269,8 +299,8 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
         </div>
         {expanded ? (
           <div className="space-y-3 border-t border-border/60 pt-3">
-            {post.comments.map((item) => <CommentItem key={item.id} item={item} postId={post.id} mentionOptions={mentionOptions} canPin={canPin} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
-            {post.comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
+            {comments.map((item) => <CommentItem key={item.id} item={item} postId={post.id} mentionOptions={mentionOptions} canPin={canPin} onPinChange={(commentId, pinned, pinnedAt) => setPinOverrides((current) => ({ ...current, [commentId]: { pinned, pinnedAt } }))} onReply={(parentId, body) => onComment(post.id, body, parentId)} />)}
+            {comments.length === 0 ? <p className="text-xs text-muted-foreground">Seja o primeiro a comentar.</p> : null}
             <form className="flex gap-2" onSubmit={(event) => void submitComment(event)}>
               <div className="min-w-0 flex-1"><MentionTextarea value={comment} onChange={setComment} options={mentionOptions} maxLength={1000} rows={1} placeholder="Escreva um comentário..." className="min-h-9 py-1 text-xs" /></div>
               <Button type="submit" size="icon" aria-label="Enviar comentário" disabled={!comment.trim() || commenting}>{commenting ? <LoaderCircle className="animate-spin" /> : <Send />}</Button>

@@ -20,6 +20,7 @@ export type PostComment = {
   parentId: string | null
   body: string
   createdAt: string
+  pinnedAt: string | null
   likes: number
   liked: boolean
   pinned: boolean
