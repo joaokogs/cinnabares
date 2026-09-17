@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { getMentionOptions, MentionTextarea, RichMentionText, type MentionOption } from "@/components/ui/mention-textarea"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
@@ -126,7 +127,7 @@ function BuildMoveBadge({ move }: { move: string }) {
 }
 
 // eslint-disable-next-line complexity
-function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options: PokeOption[] }) {
+function BuildPokemonCard({ pokemon, options, mentionOptions }: { pokemon: PostPokemon; options: PokeOption[]; mentionOptions: MentionOption[] }) {
   const selected = options.find((option) => option.name === pokemon.name)
   const [meta, setMeta] = useState<DisplayPokemonMeta | null>(() => displayPokemonCache.get(pokemon.name) ?? null)
   useEffect(() => {
@@ -158,9 +159,9 @@ function BuildPokemonCard({ pokemon, options }: { pokemon: PostPokemon; options:
           <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Item</p><div className="flex items-center gap-2 font-semibold">{pokemon.item ? <Image src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(pokemon.item)}.png`} alt="" width={24} height={24} unoptimized className="size-6 object-contain" /> : null}<span className="truncate">{pokemon.item ? formatName(pokemon.item) : "Sem item"}</span></div></div>
           <div className="min-w-0"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ability</p><p className="truncate font-semibold">{pokemon.ability ? formatName(pokemon.ability) : "Não informada"}</p></div>
         </div>
-        {pokemon.description ? <div className="border-l-2 border-accent/60 bg-accent/5 px-3 py-2"><p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-accent">Descrição</p><p className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{pokemon.description}</p></div> : null}
         <div><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Moveset</p><div className="grid gap-1.5 sm:grid-cols-2">{pokemon.moves.filter(Boolean).map((move) => <BuildMoveBadge key={move} move={move} />)}{pokemon.moves.filter(Boolean).length === 0 ? <span className="text-muted-foreground">Não informado</span> : null}</div></div>
         <div className="border-t border-border/60 pt-2.5"><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">IVs / EVs</p><span className="font-mono text-[10px] text-muted-foreground">Lv. 50</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{STAT_NAMES.map(([key, label]) => <div key={key} className="rounded-md border border-border/60 bg-muted/30 px-2 py-1.5"><p className="font-mono text-[10px] font-bold text-foreground">{label}</p><div className="mt-1 flex items-center justify-between gap-2 text-[10px]"><span className="text-muted-foreground">IV <strong className="text-foreground">{pokemon.ivs[key] ?? 0}</strong></span><span className="text-muted-foreground">EV <strong className="text-accent">{pokemon.evs[key] ?? 0}</strong></span></div></div>)}</div>{evSummary ? <p className="mt-2 font-mono text-[10px] font-semibold text-foreground">EVs: {evSummary}</p> : null}</div>
+        {pokemon.description ? <div className="border-t border-border/60 pt-3"><p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-accent">Descrição</p><p className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={pokemon.description} options={mentionOptions} /></p></div> : null}
       </div>
     </details>
   )
@@ -184,7 +185,7 @@ function CommentItem({ item, onReply, depth = 0 }: { item: PostFeedItem["comment
   return <div className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.body}</p><button type="button" onClick={() => setReplying((value) => !value)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div>{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><input autoFocus value={reply} onChange={(event) => setReply(event.target.value)} maxLength={1000} placeholder={`Responder ${item.author.name}...`} className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background/70 px-3 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{item.replies.map((child) => <CommentItem key={child.id} item={child} onReply={onReply} depth={depth + 1} />)}</div>
 }
 
-function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+function PostCard({ post, options, mentionOptions, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
   const [comment, setComment] = useState("")
   const [commenting, setCommenting] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -212,7 +213,7 @@ function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; 
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
-        <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{post.description}</p>
+        <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground"><RichMentionText text={post.description} options={mentionOptions} /></p>
         {post.pokemon.length > 0 ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -220,7 +221,7 @@ function PostCard({ post, options, onAction, onComment }: { post: PostFeedItem; 
               <span className="text-[10px] text-muted-foreground">Clique para ver detalhes</span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              {post.pokemon.map((pokemon) => <BuildPokemonCard key={pokemon.id} pokemon={pokemon} options={options} />)}
+              {post.pokemon.map((pokemon) => <BuildPokemonCard key={pokemon.id} pokemon={pokemon} options={options} mentionOptions={mentionOptions} />)}
             </div>
           </div>
         ) : null}
@@ -274,7 +275,7 @@ export function LegacyBuildEditor({ build, index, options, onChange, onRemove, c
   )
 }
 
-function CreatePost({ options, onCreated }: { options: BuildEditorOptions; onCreated: () => Promise<void> }) {
+function CreatePost({ options, mentionOptions, onCreated }: { options: BuildEditorOptions; mentionOptions: MentionOption[]; onCreated: () => Promise<void> }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [builds, setBuilds] = useState<BuildDraft[]>([])
@@ -296,7 +297,7 @@ function CreatePost({ options, onCreated }: { options: BuildEditorOptions; onCre
   return (
     <Card className="border-accent/25 bg-card/90 shadow-lg shadow-black/10">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Compartilhe com a comunidade</p><h2 className="mt-1 font-heading text-xl font-bold">Publique uma estratégia</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
-      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<textarea required minLength={1} maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explique a ideia da estratégia..." rows={4} className="w-full resize-y rounded-lg border border-input bg-background/70 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
+      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<MentionTextarea value={description} onChange={setDescription} options={mentionOptions} required maxLength={5000} placeholder="Use @ para mencionar golpes, itens, natures..." rows={4} /></label></div><div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.length < 6 ? <Button type="button" variant="outline" size="sm" onClick={() => setBuilds((value) => [...value, emptyBuild()])}><Plus /> Pokémon</Button> : null}</div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
     </Card>
   )
 }
@@ -306,6 +307,7 @@ export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedIt
   const [loading, setLoading] = useState(false)
   const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
   const options = useMemo(() => ({ pokemon, items, abilities, natures, moves }), [abilities, items, moves, natures, pokemon])
+  const mentionOptions = useMemo(() => getMentionOptions(options), [options])
 
   async function refreshPosts() {
     setLoading(true)
@@ -327,6 +329,6 @@ export function PostsFeed({ initialPosts, userName }: { initialPosts: PostFeedIt
   }
 
   return (
-    <main className="relative min-h-screen flex-1 overflow-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5"><CreatePost options={options} onCreated={refreshPosts} />{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}{posts.length > 0 ? posts.map((post) => <PostCard key={post.id} post={post} options={pokemon} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Ainda não há posts</p><p className="mt-2 text-sm text-muted-foreground">{userName}, publique a primeira estratégia da comunidade.</p></CardContent></Card>}</div></section></main>
+    <main className="relative min-h-screen flex-1 overflow-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5"><CreatePost options={options} mentionOptions={mentionOptions} onCreated={refreshPosts} />{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}{posts.length > 0 ? posts.map((post) => <PostCard key={post.id} post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Ainda não há posts</p><p className="mt-2 text-sm text-muted-foreground">{userName}, publique a primeira estratégia da comunidade.</p></CardContent></Card>}</div></section></main>
   )
 }
