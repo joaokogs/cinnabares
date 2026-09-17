@@ -15,8 +15,15 @@ function serializeDate(value: Date) {
   return value.toISOString()
 }
 
-export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<PostFeedItem[]> {
-  const rows = await db
+export async function getPosts(viewerId: string, limit: number | undefined = PAGE_SIZE, authorId?: string, postId?: string): Promise<PostFeedItem[]> {
+  const where = authorId && postId
+    ? and(eq(post.authorId, authorId), eq(post.id, postId))
+    : authorId
+      ? eq(post.authorId, authorId)
+      : postId
+        ? eq(post.id, postId)
+        : undefined
+  const postsQuery = db
     .select({
       id: post.id,
       title: post.title,
@@ -36,8 +43,9 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
     })
     .from(post)
     .innerJoin(user, eq(user.id, post.authorId))
+    .where(where)
     .orderBy(desc(post.createdAt))
-    .limit(limit)
+  const rows = limit === undefined ? await postsQuery : await postsQuery.limit(limit)
 
   if (rows.length === 0) return []
 
@@ -123,6 +131,15 @@ export async function getPosts(viewerId: string, limit = PAGE_SIZE): Promise<Pos
       bookmarked: Boolean(row.bookmarked),
     },
   }))
+}
+
+export async function getPost(viewerId: string, postId: string) {
+  const [item] = await getPosts(viewerId, 1, undefined, postId)
+  return item ?? null
+}
+
+export async function getUserPosts(viewerId: string, authorId: string) {
+  return getPosts(viewerId, undefined, authorId)
 }
 
 export async function createPost(authorId: string, input: PostInput) {

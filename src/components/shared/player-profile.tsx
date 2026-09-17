@@ -8,7 +8,9 @@ import { ProfileTabs } from "@/app/(app)/perfil/_components/profile-tabs"
 import { GuildImage } from "@/components/shared/guild-image"
 import { PlayerTopPokemon } from "@/app/(app)/perfil/_components/player-top-pokemon"
 import { PlayerTournamentStats } from "@/app/(app)/perfil/_components/tournament-stats"
+import { ProfilePosts } from "@/app/(app)/posts/_components/post-interactions"
 import type { getUserGuild } from "@/lib/guilds/queries"
+import { getUserPosts } from "@/lib/posts/queries"
 import { computePoints } from "@/lib/tournaments/points"
 import { getPlayerStats } from "@/lib/tournaments/stats"
 
@@ -22,21 +24,22 @@ type PlayerProfileProps = {
   guild: Awaited<ReturnType<typeof getUserGuild>>
   avatarUrl: string | null
   isSelf: boolean
+  viewerId: string
   headerAction?: ReactNode
 }
 
-export function PlayerProfile({ player, guild, avatarUrl, isSelf, headerAction }: PlayerProfileProps) {
+export function PlayerProfile({ player, guild, avatarUrl, isSelf, viewerId, headerAction }: PlayerProfileProps) {
   const stats = getPlayerStats(player.id)
 
-  return <PlayerProfileContent player={player} guild={guild} avatarUrl={avatarUrl} isSelf={isSelf} headerAction={headerAction} statsPromise={stats} />
+  return <PlayerProfileContent player={player} guild={guild} avatarUrl={avatarUrl} isSelf={isSelf} viewerId={viewerId} headerAction={headerAction} statsPromise={stats} />
 }
 
-async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, headerAction, statsPromise }: PlayerProfileProps & { statsPromise: ReturnType<typeof getPlayerStats> }) {
-  const { history, favorite } = await statsPromise
+async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, viewerId, headerAction, statsPromise }: PlayerProfileProps & { statsPromise: ReturnType<typeof getPlayerStats> }) {
+  const [{ history, favorite }, posts] = await Promise.all([statsPromise, getUserPosts(viewerId, player.id)])
   const points = computePoints(history.filter((item) => item.format === "individual"))
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-10 sm:px-6 lg:py-16">
+    <main className="relative min-h-screen overflow-x-hidden bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" aria-hidden="true" />
       <div className="relative z-10 mx-auto w-full max-w-3xl">
         <ProfileTabs
@@ -104,6 +107,7 @@ async function PlayerProfileContent({ player, guild, avatarUrl, isSelf, headerAc
               <PlayerTournamentStats history={history} />
             </section>
           }
+          posts={<ProfilePosts initialPosts={posts} />}
         />
       </div>
     </main>

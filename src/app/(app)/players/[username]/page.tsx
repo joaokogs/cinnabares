@@ -36,6 +36,7 @@ export default async function PublicPlayerPage({ params }: PlayerPageProps) {
       guild={guild}
       avatarUrl={player.image ? `/api/players/${encodeURIComponent(player.username ?? username)}/avatar` : null}
       isSelf={session?.user.id === player.id}
+      viewerId={session?.user.id ?? player.id}
     />
   )
 }

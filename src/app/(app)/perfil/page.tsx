@@ -30,6 +30,7 @@ export default async function ProfilePage() {
       guild={guild}
       avatarUrl={player.image ? `/api/profile/avatar?path=${encodeURIComponent(player.image)}` : null}
       isSelf
+      viewerId={session.user.id}
       headerAction={<SignOutButton />}
     />
   )
