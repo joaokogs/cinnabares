@@ -11,6 +11,26 @@ export type NamedOption = {
   name: string
 }
 
+export const HIDDEN_POWER_MOVES = [
+  "hidden-power",
+  "hidden-power-bug",
+  "hidden-power-dark",
+  "hidden-power-dragon",
+  "hidden-power-electric",
+  "hidden-power-fighting",
+  "hidden-power-fire",
+  "hidden-power-flying",
+  "hidden-power-ghost",
+  "hidden-power-grass",
+  "hidden-power-ground",
+  "hidden-power-ice",
+  "hidden-power-poison",
+  "hidden-power-psychic",
+  "hidden-power-rock",
+  "hidden-power-steel",
+  "hidden-power-water",
+] as const
+
 type NamedResource = {
   name: string
   url: string
@@ -90,7 +110,9 @@ async function fetchNamedResources(endpoint: "ability" | "nature" | "move") {
   const response = await fetch(`${API_URL}/${endpoint}?limit=2000`)
   if (!response.ok) throw new Error("PokéAPI indisponível")
   const data = await response.json() as ResourceList
-  return data.results.map(({ name }) => ({ name }))
+  const names = data.results.map(({ name }) => name)
+  const allNames = endpoint === "move" ? Array.from(new Set([...names, ...HIDDEN_POWER_MOVES])) : names
+  return allNames.map((name) => ({ name }))
 }
 
 function loadResources(resource: "pokemon" | "item") {
