@@ -7,7 +7,7 @@ import { useMemo, useState } from "react"
 import { getMentionOptions } from "@/components/ui/mention-textarea"
 import { usePokeApiData } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem } from "@/lib/posts/types"
-import { CreatePost, LinkedPostCard, LoginGateProvider, PostCard } from "./posts-feed"
+import { CreatePost, LinkedPostCard, PostCard } from "./posts-feed"
 
 function usePostOptions() {
   const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
@@ -27,7 +27,7 @@ export function CreatePostPage() {
   return <main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href="/posts" className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para posts</Link><h1 className="mb-2 font-heading text-3xl font-bold tracking-tight">Criar post</h1><p className="mb-7 text-sm text-muted-foreground">Compartilhe uma estratégia, build ou descoberta com a comunidade.</p>{optionsError ? <p className="mb-4 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível preencher os nomes manualmente.</p> : null}{optionsLoading ? <p className="mb-4 text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}<CreatePost options={options} mentionOptions={mentionOptions} onCreated={handleCreated} /></section></main>
 }
 
-export function PostDetail({ initialPost, viewerId }: { initialPost: PostFeedItem; viewerId: string | null }) {
+export function PostDetail({ initialPost }: { initialPost: PostFeedItem }) {
   const [post, setPost] = useState(initialPost)
   const { pokemon, mentionOptions } = usePostOptions()
 
@@ -53,7 +53,7 @@ export function PostDetail({ initialPost, viewerId }: { initialPost: PostFeedIte
     if (response.ok) await refreshPost()
   }
 
-  return <LoginGateProvider viewerId={viewerId}><main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href="/posts" className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para posts</Link><PostCard post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></section></main></LoginGateProvider>
+  return <main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href="/posts" className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para posts</Link><PostCard post={post} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></section></main>
 }
 
 export function ProfilePosts({ initialPosts, viewerId }: { initialPosts: PostFeedItem[]; viewerId: string }) {

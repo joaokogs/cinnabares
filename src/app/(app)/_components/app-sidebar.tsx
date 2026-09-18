@@ -20,6 +20,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { authClient } from "@/lib/auth-client"
+import { useLoginGate } from "@/components/shared/login-gate"
 import { cn } from "@/lib/utils"
 
 type GuildInfo = {
@@ -37,7 +38,7 @@ type UserInfo = {
 }
 
 type AppSidebarProps = {
-  user: UserInfo
+  user: UserInfo | null
   guild: GuildInfo | null
   notificationCount: number
 }
@@ -73,10 +74,17 @@ function BrandLink({ showLabel }: { showLabel: boolean }) {
 }
 
 function NavItemLink({ item, isActive, collapsed, notificationCount }: { item: NavItem; isActive: boolean; collapsed: boolean; notificationCount: number }) {
+  const { isAuthenticated, openLogin } = useLoginGate()
   const Icon = item.icon
   return (
     <Link
       href={item.href}
+      onClick={(event) => {
+        if (!isAuthenticated && item.href !== "/posts") {
+          event.preventDefault()
+          openLogin(item.href)
+        }
+      }}
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
@@ -119,7 +127,12 @@ function GuildCard({ guild }: { guild: GuildInfo }) {
   )
 }
 
-function UserLink({ user, displayName, initial, collapsed }: { user: UserInfo; displayName: string; initial: string; collapsed: boolean }) {
+function UserLink({ user, displayName, initial, collapsed }: { user: UserInfo | null; displayName: string; initial: string; collapsed: boolean }) {
+  const { isAuthenticated, openLogin } = useLoginGate()
+  if (!user) {
+    return <button type="button" onClick={() => openLogin("/perfil")} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} aria-label="Fazer login"><User className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>{isAuthenticated ? "Perfil" : "Fazer login"}</span>}</button>
+  }
+
   return (
     <Link
       href="/perfil"
@@ -153,29 +166,31 @@ function UserLink({ user, displayName, initial, collapsed }: { user: UserInfo; d
 }
 
 function SignOutButton({ collapsed, onSignOut }: { collapsed: boolean; onSignOut: () => void }) {
+  const { isAuthenticated, openLogin } = useLoginGate()
   return (
     <button
       type="button"
-      onClick={onSignOut}
+      onClick={() => isAuthenticated ? onSignOut() : openLogin()}
       className={cn(
         "mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
         collapsed && "justify-center px-0"
       )}
-      aria-label="Sair da conta"
+      aria-label={isAuthenticated ? "Sair da conta" : "Fazer login"}
     >
-      <LogOut className="size-5 shrink-0" aria-hidden="true" />
-      {!collapsed && <span>Sair</span>}
+      {isAuthenticated ? <LogOut className="size-5 shrink-0" aria-hidden="true" /> : <User className="size-5 shrink-0" aria-hidden="true" />}
+      {!collapsed && <span>{isAuthenticated ? "Sair" : "Fazer login"}</span>}
     </button>
   )
 }
 
 function SavedPostsLink({ collapsed }: { collapsed: boolean }) {
-  return <Link href="/posts/salvos" className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} title="Posts salvos"><Bookmark className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>Posts salvos</span>}</Link>
+  const { isAuthenticated, openLogin } = useLoginGate()
+  return <Link href="/posts/salvos" onClick={(event) => { if (!isAuthenticated) { event.preventDefault(); openLogin("/posts/salvos") } }} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} title="Posts salvos"><Bookmark className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>Posts salvos</span>}</Link>
 }
 
 type SidebarNavProps = {
   guild: GuildInfo | null
-  user: UserInfo
+  user: UserInfo | null
   displayName: string
   initial: string
   collapsed: boolean
@@ -238,7 +253,7 @@ export function AppSidebar({ user, guild, notificationCount }: AppSidebarProps) 
     router.refresh()
   }
 
-  const displayName = user.username ?? user.name
+  const displayName = user?.username ?? user?.name ?? "Fazer login"
   const initial = displayName.slice(0, 1).toUpperCase()
 
   const activeNavItem = NAV_ITEMS

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 
 import { auth } from "@/lib/auth"
 import { getPost } from "@/lib/posts/queries"
+import { AppShell } from "@/app/(app)/_components/app-shell"
 import { PostDetail } from "@/app/(app)/posts/_components/post-interactions"
 
 type PostPageProps = {
@@ -28,5 +29,5 @@ export default async function PostPage({ params }: PostPageProps) {
   const post = await getPost(viewerId, id)
   if (!post) notFound()
 
-  return <PostDetail initialPost={post} viewerId={viewerId} />
+  return <AppShell user={session ? { id: session.user.id, name: session.user.name, username: session.user.username ?? null, image: session.user.image ?? null } : null}><PostDetail initialPost={post} /></AppShell>
 }

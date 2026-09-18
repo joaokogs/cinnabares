@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 
 import { auth } from "@/lib/auth"
 import { getPosts } from "@/lib/posts/queries"
+import { AppShell } from "@/app/(app)/_components/app-shell"
 import { PostsFeed } from "@/app/(app)/posts/_components/posts-feed"
 
 export const metadata: Metadata = {
@@ -17,5 +18,6 @@ export default async function PostsPage() {
   const viewerId = session?.user.id ?? null
 
   const posts = await getPosts(viewerId)
-  return <PostsFeed initialPosts={posts} userName={session?.user.name} viewerId={viewerId} />
+  const content = <PostsFeed initialPosts={posts} userName={session?.user.name} viewerId={viewerId} />
+  return <AppShell user={session ? { id: session.user.id, name: session.user.name, username: session.user.username ?? null, image: session.user.image ?? null } : null}>{content}</AppShell>
 }

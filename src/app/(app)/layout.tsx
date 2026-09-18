@@ -1,9 +1,7 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { getUserGuild, getGuildMemberCount } from "@/lib/guilds/queries"
-import { getUnreadNotificationCount } from "@/lib/notifications/queries"
-import { AppSidebar } from "./_components/app-sidebar"
+import { AppShell } from "./_components/app-shell"
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -12,38 +10,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     redirect("/login")
   }
 
-  const [guildRow, unreadNotificationCount] = await Promise.all([
-    getUserGuild(session.user.id),
-    getUnreadNotificationCount(session.user.id),
-  ])
-
-  let memberCount = 0
-  if (guildRow) {
-    memberCount = await getGuildMemberCount(guildRow.guildId)
-  }
-
   const user = session.user
 
-  return (
-    <div className="flex min-h-screen bg-background">
-      <AppSidebar
-        user={{
-          name: user.name,
-          username: user.username ?? null,
-          image: user.image ?? null,
-        }}
-         guild={guildRow ? {
-           id: guildRow.guildId,
-           name: guildRow.guildName,
-           tag: guildRow.guildTag,
-           memberCount,
-           image: guildRow.guildImage,
-         } : null}
-        notificationCount={unreadNotificationCount}
-      />
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {children}
-      </main>
-    </div>
-  )
+  return <AppShell user={{ id: user.id, name: user.name, username: user.username ?? null, image: user.image ?? null }}>{children}</AppShell>
 }
