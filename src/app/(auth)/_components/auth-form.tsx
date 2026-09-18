@@ -121,7 +121,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedRedirect = searchParams.get("redirect")
-  const redirectTo = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") ? requestedRedirect : "/perfil"
+  const redirectTo = requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//") ? requestedRedirect : "/posts"
   const isRegister = mode === "register"
   const copy = COPY[mode]
   const [username, setUsername] = useState("")
