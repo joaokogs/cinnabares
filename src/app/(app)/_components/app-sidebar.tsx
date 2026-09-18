@@ -5,6 +5,7 @@ import {
   Bell,
   Flame,
   Home,
+  LogIn,
   LogOut,
   Menu,
   Shield,
@@ -130,15 +131,15 @@ function GuildCard({ guild }: { guild: GuildInfo }) {
 function UserLink({ user, displayName, initial, collapsed }: { user: UserInfo | null; displayName: string; initial: string; collapsed: boolean }) {
   const { isAuthenticated, openLogin } = useLoginGate()
   if (!user) {
-    return <button type="button" onClick={() => openLogin("/perfil")} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} aria-label="Fazer login"><User className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>{isAuthenticated ? "Perfil" : "Fazer login"}</span>}</button>
+    return <button type="button" onClick={() => openLogin("/perfil")} className={cn("flex h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "w-10 justify-center px-0")} aria-label="Fazer login"><LogIn className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>{isAuthenticated ? "Perfil" : "Fazer login"}</span>}</button>
   }
 
   return (
     <Link
       href="/perfil"
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/5",
-        collapsed && "justify-center px-0"
+        "flex h-10 items-center gap-3 rounded-lg px-3 py-1 text-sm transition-colors hover:bg-accent/5",
+        collapsed && "w-10 justify-center px-0"
       )}
     >
       <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-accent/15 font-heading text-xs font-semibold text-accent">
@@ -172,12 +173,12 @@ function SignOutButton({ collapsed, onSignOut }: { collapsed: boolean; onSignOut
       type="button"
       onClick={() => isAuthenticated ? onSignOut() : openLogin()}
       className={cn(
-        "mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+        "mt-2 flex h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
         collapsed && "justify-center px-0"
       )}
       aria-label={isAuthenticated ? "Sair da conta" : "Fazer login"}
     >
-      {isAuthenticated ? <LogOut className="size-5 shrink-0" aria-hidden="true" /> : <User className="size-5 shrink-0" aria-hidden="true" />}
+      {isAuthenticated ? <LogOut className="size-5 shrink-0" aria-hidden="true" /> : <LogIn className="size-5 shrink-0" aria-hidden="true" />}
       {!collapsed && <span>{isAuthenticated ? "Sair" : "Fazer login"}</span>}
     </button>
   )
@@ -185,7 +186,7 @@ function SignOutButton({ collapsed, onSignOut }: { collapsed: boolean; onSignOut
 
 function SavedPostsLink({ collapsed }: { collapsed: boolean }) {
   const { isAuthenticated, openLogin } = useLoginGate()
-  return <Link href="/posts/salvos" onClick={(event) => { if (!isAuthenticated) { event.preventDefault(); openLogin("/posts/salvos") } }} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "justify-center px-0")} title="Posts salvos"><Bookmark className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>Posts salvos</span>}</Link>
+  return <Link href="/posts/salvos" onClick={(event) => { if (!isAuthenticated) { event.preventDefault(); openLogin("/posts/salvos") } }} className={cn("flex h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/5 hover:text-foreground", collapsed && "w-10 justify-center px-0")} title="Posts salvos"><Bookmark className="size-5 shrink-0" aria-hidden="true" />{!collapsed && <span>Posts salvos</span>}</Link>
 }
 
 type SidebarNavProps = {
@@ -217,7 +218,7 @@ function SidebarNav({ guild, user, displayName, initial, collapsed, activeNavIte
         {guild && !collapsed && <GuildCard guild={guild} />}
         <UserLink user={user} displayName={displayName} initial={initial} collapsed={collapsed} />
         <SavedPostsLink collapsed={collapsed} />
-        <SignOutButton collapsed={collapsed} onSignOut={onSignOut} />
+        {user ? <SignOutButton collapsed={collapsed} onSignOut={onSignOut} /> : null}
       </div>
     </nav>
   )
