@@ -15,11 +15,12 @@ function serializeDate(value: Date) {
   return value.toISOString()
 }
 
-export async function getPosts(viewerId: string, limit: number | undefined = PAGE_SIZE, authorId?: string, postId?: string, savedOnly = false): Promise<PostFeedItem[]> {
+export async function getPosts(viewerId: string | null, limit: number | undefined = PAGE_SIZE, authorId?: string, postId?: string, savedOnly = false): Promise<PostFeedItem[]> {
+  const viewer = viewerId ?? ""
   const conditions: SQL[] = []
   if (authorId) conditions.push(eq(post.authorId, authorId))
   if (postId) conditions.push(eq(post.id, postId))
-  if (savedOnly) conditions.push(sql`${post.id} in (select post_id from post_bookmark where user_id = ${viewerId})`)
+  if (savedOnly) conditions.push(sql`${post.id} in (select post_id from post_bookmark where user_id = ${viewer})`)
   const where = conditions.length > 0 ? and(...conditions) : undefined
   const postsQuery = db
     .select({
@@ -35,9 +36,9 @@ export async function getPosts(viewerId: string, limit: number | undefined = PAG
       comments: sql<number>`cast((select count(*) from post_comment where post_comment.post_id = ${post.id}) as int)`,
       reposts: sql<number>`cast((select count(*) from post_repost where post_repost.post_id = ${post.id}) as int)`,
       bookmarks: sql<number>`cast((select count(*) from post_bookmark where post_bookmark.post_id = ${post.id}) as int)`,
-      liked: sql<boolean>`exists(select 1 from post_like where post_like.post_id = ${post.id} and post_like.user_id = ${viewerId})`,
-      reposted: sql<boolean>`exists(select 1 from post_repost where post_repost.post_id = ${post.id} and post_repost.user_id = ${viewerId})`,
-      bookmarked: sql<boolean>`exists(select 1 from post_bookmark where post_bookmark.post_id = ${post.id} and post_bookmark.user_id = ${viewerId})`,
+      liked: sql<boolean>`exists(select 1 from post_like where post_like.post_id = ${post.id} and post_like.user_id = ${viewer})`,
+      reposted: sql<boolean>`exists(select 1 from post_repost where post_repost.post_id = ${post.id} and post_repost.user_id = ${viewer})`,
+      bookmarked: sql<boolean>`exists(select 1 from post_bookmark where post_bookmark.post_id = ${post.id} and post_bookmark.user_id = ${viewer})`,
     })
     .from(post)
     .innerJoin(user, eq(user.id, post.authorId))
@@ -127,7 +128,7 @@ export async function getPosts(viewerId: string, limit: number | undefined = PAG
       bookmarks: Number(row.bookmarks),
     },
     viewer: {
-      isAuthor: row.authorId === viewerId,
+      isAuthor: row.authorId === viewer,
       liked: Boolean(row.liked),
       reposted: Boolean(row.reposted),
       bookmarked: Boolean(row.bookmarked),
@@ -135,7 +136,7 @@ export async function getPosts(viewerId: string, limit: number | undefined = PAG
   }))
 }
 
-export async function getPost(viewerId: string, postId: string) {
+export async function getPost(viewerId: string | null, postId: string) {
   const [item] = await getPosts(viewerId, 1, undefined, postId)
   return item ?? null
 }

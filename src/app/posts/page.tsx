@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
 
 import { auth } from "@/lib/auth"
 import { getPosts } from "@/lib/posts/queries"
-import { PostsFeed } from "./_components/posts-feed"
+import { PostsFeed } from "@/app/(app)/posts/_components/posts-feed"
 
 export const metadata: Metadata = {
   title: "Posts",
@@ -15,8 +14,8 @@ export const dynamic = "force-dynamic"
 
 export default async function PostsPage() {
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) redirect("/login")
+  const viewerId = session?.user.id ?? null
 
-  const posts = await getPosts(session.user.id)
-  return <PostsFeed initialPosts={posts} userName={session.user.name} viewerId={session.user.id} />
+  const posts = await getPosts(viewerId)
+  return <PostsFeed initialPosts={posts} userName={session?.user.name} viewerId={viewerId} />
 }

@@ -14,12 +14,14 @@ import {
   Reply,
   Search,
   Send,
+  Share2,
   Trash2,
 } from "lucide-react"
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getMentionOptions, MentionTextarea, MoveHoverCard, RichMentionText, type MentionOption } from "@/components/ui/mention-textarea"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
@@ -107,6 +109,97 @@ function ActionButton({ label, count, active, icon: Icon, onClick }: {
   )
 }
 
+type LoginGate = {
+  isAuthenticated: boolean
+  openLogin: (redirectTo?: string) => void
+}
+
+const LoginGateContext = createContext<LoginGate>({ isAuthenticated: true, openLogin: () => {} })
+
+function useLoginGate() {
+  return useContext(LoginGateContext)
+}
+
+export function LoginDialog({ open, onOpenChange, redirectTo }: { open: boolean; onOpenChange: (open: boolean) => void; redirectTo: string }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Entre para continuar</DialogTitle>
+          <DialogDescription>Faça login para curtir, comentar e salvar posts da comunidade.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Agora não</Button>
+          </DialogClose>
+          <Button asChild>
+            <Link href={`/login?redirect=${encodeURIComponent(redirectTo)}`}>Fazer login</Link>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function LoginGateProvider({ viewerId, children }: { viewerId: string | null; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [redirectTo, setRedirectTo] = useState("/posts")
+
+  function openLogin(target?: string) {
+    setRedirectTo(target ?? `${window.location.pathname}${window.location.search}`)
+    setOpen(true)
+  }
+
+  return (
+    <LoginGateContext.Provider value={{ isAuthenticated: viewerId !== null, openLogin }}>
+      {children}
+      <LoginDialog open={open} onOpenChange={setOpen} redirectTo={redirectTo} />
+    </LoginGateContext.Provider>
+  )
+}
+
+function SharePostButton({ post }: { post: PostFeedItem }) {
+  const [feedback, setFeedback] = useState<"copied" | "shared" | null>(null)
+
+  useEffect(() => {
+    if (!feedback) return
+    const timeout = window.setTimeout(() => setFeedback(null), 2000)
+    return () => window.clearTimeout(timeout)
+  }, [feedback])
+
+  async function share() {
+    const url = `${window.location.origin}/posts/${post.id}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: post.title, url })
+        setFeedback("shared")
+      } catch {
+        // Usuario cancelou o compartilhamento nativo.
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+        setFeedback("copied")
+      } catch {
+        // Clipboard indisponivel.
+      }
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => void share()} aria-label="Compartilhar post" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-accent">
+        <Share2 className="size-4" aria-hidden="true" />
+      </button>
+      {feedback ? (
+        <span role="status" className="absolute -top-9 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-[10px] font-semibold text-foreground shadow-lg">
+          {feedback === "copied" ? "Link copiado!" : "Compartilhado!"}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 type DisplayPokemonMeta = { id: number; types: string[] }
 const displayPokemonCache = new Map<string, DisplayPokemonMeta>()
 const displayMoveTypeCache = new Map<string, string>()
@@ -182,6 +275,7 @@ function applyPinOverrides(comments: PostFeedItem["comments"], overrides: Record
 
 // eslint-disable-next-line complexity
 function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; postId: string; mentionOptions: MentionOption[]; canPin: boolean; onPinChange: (commentId: string, pinned: boolean, pinnedAt: string | null) => void; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
+  const { isAuthenticated, openLogin } = useLoginGate()
   const [reply, setReply] = useState("")
   const [replying, setReplying] = useState(false)
   const [sending, setSending] = useState(false)
@@ -195,6 +289,10 @@ function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onRepl
 
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!isAuthenticated) {
+      openLogin()
+      return
+    }
     if (!reply.trim() || sending) return
     setSending(true)
     await onReply(item.id, reply)
@@ -204,6 +302,10 @@ function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onRepl
   }
 
   async function toggleLike() {
+    if (!isAuthenticated) {
+      openLogin()
+      return
+    }
     if (likePending) return
     setLikePending(true)
     const response = await fetch(`/api/posts/${postId}/comments/${item.id}/like`, { method: "POST" })
@@ -243,7 +345,7 @@ function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onRepl
     }
   }
 
-  return <div id={`comment-${item.id}`} className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => void toggleLike()} disabled={likePending} className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-accent", liked && "text-accent")} aria-label={liked ? "Remover like do comentário" : "Curtir comentário"}><Heart className={cn("size-3", liked && "fill-current")} /> {likes}</button>{pinned ? <span className="inline-flex items-center gap-1 text-accent"><Pin className="size-3" /> Fixado</span> : null}{canPin ? <button type="button" onClick={() => void togglePin()} disabled={pinPending} className="inline-flex items-center gap-1 text-muted-foreground hover:text-accent"><Pin className="size-3" /> {pinned ? "Desfixar" : "Fixar"}</button> : null}<button type="button" onClick={() => setReplying((value) => !value)} className="inline-flex items-center gap-1 text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div></div>{item.replies.length > 0 ? <button type="button" onClick={() => setShowReplies((value) => !value)} className="ml-10 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><ChevronDown className={cn("size-3 transition-transform", showReplies && "rotate-180")} /> {showReplies ? "Ocultar respostas" : `Exibir ${item.replies.length} resposta${item.replies.length === 1 ? "" : "s"}`}</button> : null}{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{showReplies ? item.replies.map((child) => <CommentItem key={child.id} item={child} postId={postId} mentionOptions={mentionOptions} canPin={canPin} onPinChange={onPinChange} onReply={onReply} depth={depth + 1} />) : null}</div>
+  return <div id={`comment-${item.id}`} className={cn("space-y-2", depth > 0 && "ml-7 border-l border-border/60 pl-3")}><div className="flex gap-2.5"><Avatar name={item.author.name} url={item.author.avatarUrl} size={28} /><div className="min-w-0 flex-1 rounded-xl bg-muted/60 px-3 py-2"><p className="text-xs font-semibold">{item.author.name} <span className="font-normal text-muted-foreground">· {relativeDate(item.createdAt)}</span></p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><RichMentionText text={item.body} options={mentionOptions} /></p><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] font-semibold"><button type="button" onClick={() => void toggleLike()} disabled={likePending} className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-accent", liked && "text-accent")} aria-label={liked ? "Remover like do comentário" : "Curtir comentário"}><Heart className={cn("size-3", liked && "fill-current")} /> {likes}</button>{pinned ? <span className="inline-flex items-center gap-1 text-accent"><Pin className="size-3" /> Fixado</span> : null}{canPin ? <button type="button" onClick={() => void togglePin()} disabled={pinPending} className="inline-flex items-center gap-1 text-muted-foreground hover:text-accent"><Pin className="size-3" /> {pinned ? "Desfixar" : "Fixar"}</button> : null}<button type="button" onClick={() => isAuthenticated ? setReplying((value) => !value) : openLogin()} className="inline-flex items-center gap-1 text-accent hover:underline"><Reply className="size-3" /> Responder</button></div></div></div>{item.replies.length > 0 ? <button type="button" onClick={() => setShowReplies((value) => !value)} className="ml-10 inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:underline"><ChevronDown className={cn("size-3 transition-transform", showReplies && "rotate-180")} /> {showReplies ? "Ocultar respostas" : `Exibir ${item.replies.length} resposta${item.replies.length === 1 ? "" : "s"}`}</button> : null}{replying ? <form className="ml-10 flex gap-2" onSubmit={(event) => void submitReply(event)}><div className="min-w-0 flex-1"><MentionTextarea value={reply} onChange={setReply} options={mentionOptions} maxLength={1000} rows={1} placeholder={`Responder ${item.author.name}...`} className="min-h-8 py-1 text-xs" /></div><Button type="submit" size="icon" className="size-8" aria-label="Enviar resposta" disabled={!reply.trim() || sending}>{sending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</Button></form> : null}{showReplies ? item.replies.map((child) => <CommentItem key={child.id} item={child} postId={postId} mentionOptions={mentionOptions} canPin={canPin} onPinChange={onPinChange} onReply={onReply} depth={depth + 1} />) : null}</div>
 }
 
 export function LinkedPostCard({ post, options, mentionOptions, canPin = false, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; canPin?: boolean; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
@@ -251,6 +353,7 @@ export function LinkedPostCard({ post, options, mentionOptions, canPin = false, 
 }
 
 export function PostCard({ post, options, mentionOptions, canPin = post.viewer.isAuthor, onAction, onComment }: { post: PostFeedItem; options: PokeOption[]; mentionOptions: MentionOption[]; canPin?: boolean; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+  const { isAuthenticated, openLogin } = useLoginGate()
   const [comment, setComment] = useState("")
   const [commenting, setCommenting] = useState(false)
   const [buildExpanded, setBuildExpanded] = useState(false)
@@ -260,6 +363,10 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
 
   async function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!isAuthenticated) {
+      openLogin()
+      return
+    }
     if (!comment.trim() || commenting) return
     setCommenting(true)
     await onComment(post.id, comment)
@@ -295,10 +402,11 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
         ) : null}
         <div className="flex items-center justify-between border-t border-border/60 pt-2">
           <div className="flex items-center gap-1">
-            <ActionButton label="Curtir post" count={post.counts.likes} active={post.viewer.liked} icon={Heart} onClick={() => onAction(post.id, "like")} />
-            <ActionButton label="Comentar no post" count={post.counts.comments} active={expanded} icon={MessageCircle} onClick={() => setExpanded((value) => !value)} />
+            <ActionButton label="Curtir post" count={post.counts.likes} active={post.viewer.liked} icon={Heart} onClick={() => isAuthenticated ? onAction(post.id, "like") : openLogin()} />
+            <ActionButton label="Comentar no post" count={post.counts.comments} active={expanded} icon={MessageCircle} onClick={() => isAuthenticated ? setExpanded((value) => !value) : openLogin()} />
+            <SharePostButton post={post} />
           </div>
-          <ActionButton label="Salvar post" count={post.counts.bookmarks} active={post.viewer.bookmarked} icon={Bookmark} onClick={() => onAction(post.id, "bookmark")} />
+          <ActionButton label="Salvar post" count={post.counts.bookmarks} active={post.viewer.bookmarked} icon={Bookmark} onClick={() => isAuthenticated ? onAction(post.id, "bookmark") : openLogin()} />
         </div>
         {expanded ? (
           <div className="space-y-3 border-t border-border/60 pt-3">
@@ -373,7 +481,7 @@ export function CreatePost({ options, mentionOptions, onCreated }: { options: Bu
   )
 }
 
-function PostsResults({ posts, viewerId, options, mentionOptions, onAction, onComment }: { posts: PostFeedItem[]; viewerId: string; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
+function PostsResults({ posts, viewerId, options, mentionOptions, onAction, onComment }: { posts: PostFeedItem[]; viewerId: string | null; options: PokeOption[]; mentionOptions: MentionOption[]; onAction: (postId: string, action: "like" | "repost" | "bookmark") => void; onComment: (postId: string, body: string, parentId?: string) => Promise<void> }) {
   const [query, setQuery] = useState("")
   const normalizedQuery = query.trim().toLowerCase()
   const filteredPosts = normalizedQuery
@@ -383,7 +491,16 @@ function PostsResults({ posts, viewerId, options, mentionOptions, onAction, onCo
   return <><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar posts, builds ou Pokémon..." aria-label="Buscar posts" className="h-10 w-full rounded-lg border border-input bg-background/70 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></div><div className="mt-5 space-y-5">{filteredPosts.length > 0 ? filteredPosts.map((post) => <LinkedPostCard key={post.id} post={post} options={options} mentionOptions={mentionOptions} canPin={post.author.id === viewerId} onAction={onAction} onComment={onComment} />) : <Card className="border-dashed border-border/80 bg-card/50"><CardContent className="py-14 text-center"><p className="font-heading text-lg font-semibold">Nenhum post encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente buscar por outro termo.</p></CardContent></Card>}</div></>
 }
 
-export function PostsFeed({ initialPosts, userName: _userName, viewerId }: { initialPosts: PostFeedItem[]; userName: string; viewerId: string }) {
+function CreatePostButton() {
+  const { isAuthenticated, openLogin } = useLoginGate()
+  const className = "fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+  if (isAuthenticated) {
+    return <Link href="/posts/novo" aria-label="Criar novo post" className={className}><Plus className="size-4" aria-hidden="true" /> Criar post</Link>
+  }
+  return <button type="button" onClick={() => openLogin("/posts/novo")} aria-label="Criar novo post" className={className}><Plus className="size-4" aria-hidden="true" /> Criar post</button>
+}
+
+export function PostsFeed({ initialPosts, userName: _userName, viewerId }: { initialPosts: PostFeedItem[]; userName?: string; viewerId: string | null }) {
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
   const { pokemon, items, abilities, natures, moves, loading: optionsLoading, error: optionsError } = usePokeApiData()
@@ -410,6 +527,8 @@ export function PostsFeed({ initialPosts, userName: _userName, viewerId }: { ini
   }
 
   return (
-    <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} viewerId={viewerId} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><Link href="/posts/novo" aria-label="Criar novo post" className="fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Plus className="size-4" aria-hidden="true" /> Criar post</Link></main>
+    <LoginGateProvider viewerId={viewerId}>
+      <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} viewerId={viewerId} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><CreatePostButton /></main>
+    </LoginGateProvider>
   )
 }
