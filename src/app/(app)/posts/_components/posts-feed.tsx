@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   MessageCircle,
   Pin,
+  Pencil,
   Plus,
   Reply,
   Search,
@@ -373,7 +374,7 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
             {post.author.username ? <span className="text-xs text-muted-foreground">@{post.author.username}</span> : null}
             <span className="text-xs text-muted-foreground">· {relativeDate(post.createdAt)}</span>
           </div>
-          <h2 className="mt-2 font-heading text-lg font-bold tracking-tight">{post.title}</h2>
+          <div className="mt-2 flex items-start gap-2"><h2 className="font-heading text-lg font-bold tracking-tight">{post.title}</h2>{post.viewer.isAuthor ? <Link href={`/posts/${post.id}/editar`} aria-label="Editar post" className="relative z-20 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-accent"><Pencil className="size-4" aria-hidden="true" /></Link> : null}</div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
@@ -439,10 +440,24 @@ export function LegacyBuildEditor({ build, index, options, onChange, onRemove, c
   )
 }
 
-export function CreatePost({ options, mentionOptions, onCreated }: { options: BuildEditorOptions; mentionOptions: MentionOption[]; onCreated: () => Promise<void> }) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [builds, setBuilds] = useState<BuildDraft[]>([])
+function postBuilds(post: PostFeedItem): BuildDraft[] {
+  return post.pokemon.map((pokemon) => ({
+    name: pokemon.name,
+    description: pokemon.description ?? "",
+    item: pokemon.item ?? "",
+    ability: pokemon.ability ?? "",
+    nature: pokemon.nature ?? "",
+    ivs: { ...Object.fromEntries(STAT_NAMES.map(([key]) => [key, 31])), ...pokemon.ivs },
+    evs: { ...Object.fromEntries(STAT_NAMES.map(([key]) => [key, 0])), ...pokemon.evs },
+    moves: [...pokemon.moves, "", "", "", ""].slice(0, 4),
+  }))
+}
+
+export function CreatePost({ options, mentionOptions, onCreated, initialPost }: { options: BuildEditorOptions; mentionOptions: MentionOption[]; onCreated: () => Promise<void>; initialPost?: PostFeedItem }) {
+  const editing = Boolean(initialPost)
+  const [title, setTitle] = useState(initialPost?.title ?? "")
+  const [description, setDescription] = useState(initialPost?.description ?? "")
+  const [builds, setBuilds] = useState<BuildDraft[]>(initialPost ? postBuilds(initialPost) : [])
   const [open, setOpen] = useState(true)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -452,10 +467,11 @@ export function CreatePost({ options, mentionOptions, onCreated }: { options: Bu
     setError(null)
     setPending(true)
     try {
-      const response = await fetch("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, description, pokemon: builds.filter((build) => build.name.trim()) }) })
-      if (!response.ok) { const result = await response.json() as { error?: string }; throw new Error(result.error ?? "Não foi possível publicar o post.") }
-      setTitle(""); setDescription(""); setBuilds([]); await onCreated()
-    } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "Não foi possível publicar o post.") } finally { setPending(false) }
+      const response = await fetch(editing ? `/api/posts/${initialPost?.id}` : "/api/posts", { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, description, pokemon: builds.filter((build) => build.name.trim()) }) })
+      if (!response.ok) { const result = await response.json() as { error?: string }; throw new Error(result.error ?? (editing ? "Não foi possível salvar o post." : "Não foi possível publicar o post.")) }
+      if (!editing) { setTitle(""); setDescription(""); setBuilds([]) }
+      await onCreated()
+    } catch (submitError) { setError(submitError instanceof Error ? submitError.message : (editing ? "Não foi possível salvar o post." : "Não foi possível publicar o post.")) } finally { setPending(false) }
   }
 
   function addBuild() {
@@ -464,8 +480,8 @@ export function CreatePost({ options, mentionOptions, onCreated }: { options: Bu
 
   return (
     <Card className="overflow-visible border-accent/25 bg-card/90 shadow-lg shadow-black/10">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Compartilhe com a comunidade</p><h2 className="mt-1 font-heading text-xl font-bold">Publique uma estratégia</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
-      {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<MentionTextarea value={description} onChange={setDescription} options={mentionOptions} required maxLength={5000} placeholder="Use @ para mencionar golpes, itens, natures..." rows={4} /></label></div><div className="space-y-3"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}{builds.length < 6 ? <div className="flex justify-center pt-1"><Button type="button" variant="outline" size="sm" onClick={addBuild}><Plus /> Adicionar Pokémon</Button></div> : null}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> Publicando...</> : <><Send /> Publicar post</>}</Button></div></form></CardContent> : null}
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">{editing ? "Atualize sua publicação" : "Compartilhe com a comunidade"}</p><h2 className="mt-1 font-heading text-xl font-bold">{editing ? "Editar post" : "Publique uma estratégia"}</h2></div><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label={open ? "Recolher editor" : "Expandir editor"}><ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} /></button></CardHeader>
+       {open ? <CardContent className="pt-4"><form className="space-y-4" onSubmit={(event) => void submit(event)}><div className="space-y-4"><label className="block space-y-1.5 text-sm font-medium">Título<input required minLength={3} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Core balanceado para o tier OU" className="h-10 w-full rounded-lg border border-input bg-background/70 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30" /></label><label className="block space-y-1.5 text-sm font-medium">Descrição<MentionTextarea value={description} onChange={setDescription} options={mentionOptions} required maxLength={5000} placeholder="Use @ para mencionar golpes, itens, natures..." rows={4} /></label></div><div className="space-y-3"><div><p className="text-sm font-medium">Build Pokémon <span className="font-normal text-muted-foreground">(opcional)</span></p><p className="text-xs text-muted-foreground">Adicione IVs, EVs, moveset, nature, ability e item.</p></div>{builds.map((build, index) => <BuildEditor key={index} build={build} index={index} options={options} onChange={(value) => setBuilds((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setBuilds((current) => current.filter((_, itemIndex) => itemIndex !== index))} canRemove />)}{builds.length < 6 ? <div className="flex justify-center pt-1"><Button type="button" variant="outline" size="sm" onClick={addBuild}><Plus /> Adicionar Pokémon</Button></div> : null}</div>{error ? <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}<div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? <><LoaderCircle className="animate-spin" /> {editing ? "Salvando..." : "Publicando..."}</> : <><Send /> {editing ? "Salvar alterações" : "Publicar post"}</>}</Button></div></form></CardContent> : null}
     </Card>
   )
 }

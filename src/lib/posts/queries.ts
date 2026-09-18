@@ -177,6 +177,32 @@ export async function createPost(authorId: string, input: PostInput) {
   return id
 }
 
+export async function updatePost(postId: string, authorId: string, input: PostInput) {
+  const current = await getPostAuthorId(postId)
+  if (current !== authorId) return false
+
+  await db.update(post).set({ title: input.title, description: input.description }).where(eq(post.id, postId))
+  await db.delete(postPokemon).where(eq(postPokemon.postId, postId))
+
+  if (input.pokemon.length > 0) {
+    await db.insert(postPokemon).values(input.pokemon.map((pokemon, index) => ({
+      id: randomUUID(),
+      postId,
+      slot: index,
+      name: pokemon.name,
+      description: pokemon.description ?? "",
+      item: pokemon.item ?? "",
+      ability: pokemon.ability ?? "",
+      nature: pokemon.nature ?? "",
+      ivs: pokemon.ivs ?? {},
+      evs: pokemon.evs ?? {},
+      moves: pokemon.moves ?? [],
+    })))
+  }
+
+  return true
+}
+
 const actionTables = {
   like: postLike,
   repost: postRepost,

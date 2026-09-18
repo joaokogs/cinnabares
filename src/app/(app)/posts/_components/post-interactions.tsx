@@ -27,6 +27,18 @@ export function CreatePostPage() {
   return <main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href="/posts" className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para posts</Link><h1 className="mb-2 font-heading text-3xl font-bold tracking-tight">Criar post</h1><p className="mb-7 text-sm text-muted-foreground">Compartilhe uma estratégia, build ou descoberta com a comunidade.</p>{optionsError ? <p className="mb-4 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível preencher os nomes manualmente.</p> : null}{optionsLoading ? <p className="mb-4 text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}<CreatePost options={options} mentionOptions={mentionOptions} onCreated={handleCreated} /></section></main>
 }
 
+export function EditPostPage({ initialPost }: { initialPost: PostFeedItem }) {
+  const router = useRouter()
+  const { options, mentionOptions, optionsLoading, optionsError } = usePostOptions()
+
+  async function handleSaved() {
+    router.push(`/posts/${initialPost.id}`)
+    router.refresh()
+  }
+
+  return <main className="relative min-h-screen overflow-x-hidden bg-background"><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><Link href={`/posts/${initialPost.id}`} className="mb-5 inline-flex items-center text-sm font-semibold text-accent hover:underline">← Voltar para o post</Link><h1 className="mb-2 font-heading text-3xl font-bold tracking-tight">Editar post</h1><p className="mb-7 text-sm text-muted-foreground">Atualize o conteúdo da sua publicação.</p>{optionsError ? <p className="mb-4 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível editar os nomes manualmente.</p> : null}{optionsLoading ? <p className="mb-4 text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}<CreatePost options={options} mentionOptions={mentionOptions} initialPost={initialPost} onCreated={handleSaved} /></section></main>
+}
+
 export function PostDetail({ initialPost }: { initialPost: PostFeedItem }) {
   const [post, setPost] = useState(initialPost)
   const { pokemon, mentionOptions } = usePostOptions()
