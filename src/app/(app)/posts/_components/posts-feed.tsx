@@ -17,14 +17,14 @@ import {
   Share2,
   Trash2,
 } from "lucide-react"
-import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getMentionOptions, MentionTextarea, MoveHoverCard, RichMentionText, type MentionOption } from "@/components/ui/mention-textarea"
 import { PokeAutocomplete } from "@/components/ui/poke-autocomplete"
 import { TypeIcon } from "@/components/ui/pokemon-type-icon"
+import { useLoginGate } from "@/components/shared/login-gate"
 import { usePokeApiData, type NamedOption, type PokeOption } from "@/hooks/use-pokeapi-data"
 import type { PostFeedItem, PostPokemon } from "@/lib/posts/types"
 import { TYPE_COLORS } from "@/lib/pokemon-build"
@@ -106,55 +106,6 @@ function ActionButton({ label, count, active, icon: Icon, onClick }: {
       <Icon className={cn("size-4", active && "fill-current")} aria-hidden="true" />
       <span>{count}</span>
     </button>
-  )
-}
-
-type LoginGate = {
-  isAuthenticated: boolean
-  openLogin: (redirectTo?: string) => void
-}
-
-const LoginGateContext = createContext<LoginGate>({ isAuthenticated: true, openLogin: () => {} })
-
-function useLoginGate() {
-  return useContext(LoginGateContext)
-}
-
-export function LoginDialog({ open, onOpenChange, redirectTo }: { open: boolean; onOpenChange: (open: boolean) => void; redirectTo: string }) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Entre para continuar</DialogTitle>
-          <DialogDescription>Faça login para curtir, comentar e salvar posts da comunidade.</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Agora não</Button>
-          </DialogClose>
-          <Button asChild>
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTo)}`}>Fazer login</Link>
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-export function LoginGateProvider({ viewerId, children }: { viewerId: string | null; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const [redirectTo, setRedirectTo] = useState("/posts")
-
-  function openLogin(target?: string) {
-    setRedirectTo(target ?? `${window.location.pathname}${window.location.search}`)
-    setOpen(true)
-  }
-
-  return (
-    <LoginGateContext.Provider value={{ isAuthenticated: viewerId !== null, openLogin }}>
-      {children}
-      <LoginDialog open={open} onOpenChange={setOpen} redirectTo={redirectTo} />
-    </LoginGateContext.Provider>
   )
 }
 
