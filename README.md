@@ -55,6 +55,19 @@ O site é **dark-first**: os tokens escuros são o padrão em `:root` e o tema c
 npx shadcn@latest add <componente>
 ```
 
+## Autenticacao
+
+No ambiente de producao da Vercel, configure `NEXT_PUBLIC_SITE_URL` como
+`https://cinnabares.vercel.app`. Para aceitar outras origens, use
+`BETTER_AUTH_TRUSTED_ORIGINS` com URLs separadas por virgula:
+
+```bash
+BETTER_AUTH_TRUSTED_ORIGINS=https://cinnabares.vercel.app,https://outro-dominio.com
+```
+
+`NEXT_PUBLIC_SITE_URL` continua sendo uma URL unica, usada como URL base da
+autenticacao; ela e aceita automaticamente junto com as origens adicionais.
+
 ## Guias (`/guias`)
 
 Seção de guias estilo blog (farms, shiny hunts, times, tiers e estratégias) com

@@ -6,6 +6,10 @@ import { db } from "@/db"
 import { authSchema } from "@/db/schema"
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+const configuredTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean) ?? []
+const trustedOrigins = Array.from(new Set([siteUrl, ...configuredTrustedOrigins]))
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -13,7 +17,7 @@ export const auth = betterAuth({
     schema: authSchema,
   }),
   baseURL: siteUrl,
-  trustedOrigins: [siteUrl],
+  trustedOrigins,
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
