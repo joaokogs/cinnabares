@@ -3,6 +3,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Bookmark,
   ChevronDown,
@@ -87,11 +88,18 @@ function relativeDate(value: string) {
 }
 
 function Avatar({ name, url, size = 36 }: { name: string; url: string | null; size?: number }) {
-  return (
+  const username = url?.match(/^\/api\/players\/([^/]+)\/avatar/)?.[1]
+  const content = (
     <div className="grid shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 font-heading text-xs font-bold text-accent" style={{ width: size, height: size }}>
       {url ? <Image src={url} alt="" width={size} height={size} unoptimized className="size-full object-cover" /> : name.slice(0, 1).toUpperCase()}
     </div>
   )
+
+  if (username) {
+    return <Link href={`/players/${username}`} aria-label={`Abrir perfil de ${name}`} className="relative z-20 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{content}</Link>
+  }
+
+  return content
 }
 
 function ActionButton({ label, count, active, icon: Icon, onClick }: {
@@ -227,6 +235,8 @@ function applyPinOverrides(comments: PostFeedItem["comments"], overrides: Record
 // eslint-disable-next-line complexity
 function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onReply, depth = 0 }: { item: PostFeedItem["comments"][number]; postId: string; mentionOptions: MentionOption[]; canPin: boolean; onPinChange: (commentId: string, pinned: boolean, pinnedAt: string | null) => void; onReply: (parentId: string, body: string) => Promise<void>; depth?: number }) {
   const { isAuthenticated, openLogin } = useLoginGate()
+  const authorHref = profileHref(item.author.username)
+  const router = useRouter()
   const [reply, setReply] = useState("")
   const [replying, setReplying] = useState(false)
   const [sending, setSending] = useState(false)
@@ -237,6 +247,34 @@ function CommentItem({ item, postId, mentionOptions, canPin, onPinChange, onRepl
   const [pinned, setPinned] = useState(item.pinned)
   const [pinPending, setPinPending] = useState(false)
   const [pinnedAt, setPinnedAt] = useState(item.pinnedAt)
+
+  useEffect(() => {
+    if (!authorHref) return
+    const root = document.getElementById(`comment-${item.id}`)
+    const authorLine = root?.querySelector("p.text-xs.font-semibold")
+    if (!(authorLine instanceof HTMLElement)) return
+
+    const navigateToProfile = () => router.push(authorHref)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault()
+        navigateToProfile()
+      }
+    }
+
+    authorLine.classList.add("cursor-pointer", "hover:text-accent")
+    authorLine.setAttribute("role", "link")
+    authorLine.tabIndex = 0
+    authorLine.addEventListener("click", navigateToProfile)
+    authorLine.addEventListener("keydown", handleKeyDown)
+    return () => {
+      authorLine.classList.remove("cursor-pointer", "hover:text-accent")
+      authorLine.removeAttribute("role")
+      authorLine.removeAttribute("tabindex")
+      authorLine.removeEventListener("click", navigateToProfile)
+      authorLine.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [authorHref, item.id, router])
 
   async function submitReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -331,7 +369,7 @@ export function PostCard({ post, options, mentionOptions, canPin = post.viewer.i
         <Avatar name={post.author.name} url={post.author.avatarUrl} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="font-heading text-sm font-semibold">{post.author.name}</span>
+            {post.author.username ? <Link href={profileHref(post.author.username) ?? "#"} className="relative z-20 font-heading text-sm font-semibold hover:text-accent hover:underline">{post.author.name}</Link> : <span className="font-heading text-sm font-semibold">{post.author.name}</span>}
             {post.author.username ? <span className="text-xs text-muted-foreground">@{post.author.username}</span> : null}
             <span className="text-xs text-muted-foreground">· {relativeDate(post.createdAt)}</span>
           </div>
@@ -478,4 +516,8 @@ export function PostsFeed({ initialPosts, userName: _userName, viewerId }: { ini
   }
 
   return <main className="relative min-h-screen flex-1 overflow-x-hidden bg-background"><div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid opacity-[0.1]" /><section className="relative mx-auto w-full max-w-4xl px-4 py-7 sm:px-6 lg:py-10"><header className="mb-7 flex flex-col gap-2 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-accent">Cinnabares social</p><h1 className="mt-2 font-heading text-3xl font-bold tracking-tight sm:text-4xl">Posts da comunidade</h1></div><p className="max-w-sm text-sm leading-6 text-muted-foreground sm:text-right">Compartilhe suas builds, descubra novas estratégias e ajude outros players.</p></header><div className="space-y-5">{optionsError ? <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">As sugestões da PokéAPI não carregaram. Ainda é possível publicar preenchendo os nomes manualmente.</p> : null}{optionsLoading ? <p className="text-xs text-muted-foreground">Carregando sugestões de Pokémon e itens...</p> : null}{loading && posts.length > 0 ? <p className="text-xs text-muted-foreground">Atualizando feed...</p> : null}<PostsResults posts={posts} viewerId={viewerId} options={pokemon} mentionOptions={mentionOptions} onAction={(postId, actionName) => void action(postId, actionName)} onComment={comment} /></div></section><CreatePostButton /></main>
+}
+
+function profileHref(username: string | null) {
+  return username ? `/players/${encodeURIComponent(username)}` : null
 }
